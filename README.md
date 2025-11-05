@@ -49,14 +49,14 @@ Haxen = Kubernetes + Auth0 for AI (distributed infrastructure + identity)
 
 Haxen provides a **control plane** that treats AI agents as **production microservices**:
 
-✅ **Deploy independently** - teams ship agents without coordination
-✅ **REST API by default** - every agent function is instantly an endpoint
-✅ **Auto-orchestration** - agents call each other, workflows track automatically
-✅ **Real-time streaming** - SSE/WebSocket updates for frontends
-✅ **Async execution** - durable queues with webhooks (HMAC-signed)
-✅ **Built-in observability** - workflow DAGs, execution traces, agent notes, Prometheus metrics
-✅ **Cryptographic identity** - DIDs for agents, VCs for audit trails
-✅ **Production infrastructure** - health checks, Docker/K8s ready, horizontal scaling
+- ✅ **Deploy independently** - teams ship agents without coordination
+- ✅ **REST API by default** - every agent function is instantly an endpoint
+- ✅ **Auto-orchestration** - agents call each other, workflows track automatically
+- ✅ **Real-time streaming** - SSE/WebSocket updates for frontends
+- ✅ **Async execution** - durable queues with webhooks (HMAC-signed)
+- ✅ **Built-in observability** - workflow DAGs, execution traces, agent notes, Prometheus metrics
+- ✅ **Cryptographic identity** - DIDs for agents, VCs for audit trails
+- ✅ **Production infrastructure** - health checks, Docker/K8s ready, horizontal scaling
 
 ---
 

@@ -33,8 +33,6 @@ curl -fsSL https://agentfield.ai/install.sh | bash && af init my-agents
 
 ## 📦 Installation
 
-### Quick Install (Recommended)
-
 **macOS & Linux:**
 ```bash
 curl -fsSL https://agentfield.ai/install.sh | bash
@@ -45,58 +43,14 @@ curl -fsSL https://agentfield.ai/install.sh | bash
 iwr -useb https://agentfield.ai/install.ps1 | iex
 ```
 
-The installer:
-- ✅ Automatically detects your OS and architecture
-- ✅ Downloads the correct binary for your platform
-- ✅ Verifies checksums (SHA256)
-- ✅ Installs to `~/.agentfield/bin` (no sudo required)
-- ✅ Configures your PATH automatically
-
-After installation, verify:
+Verify installation:
 ```bash
 agentfield --version
 ```
 
-### Version Pinning
+The installer automatically detects your platform and sets everything up. No sudo required.
 
-Install a specific version:
-
-**macOS & Linux:**
-```bash
-VERSION=v1.0.0 curl -fsSL https://agentfield.ai/install.sh | bash
-```
-
-**Windows (PowerShell):**
-```powershell
-$env:VERSION="v1.0.0"; iwr -useb https://agentfield.ai/install.ps1 | iex
-```
-
-### Manual Installation
-
-1. Download the binary for your platform from [Releases](https://github.com/Agent-Field/agentfield/releases/latest):
-   - macOS Intel: `agentfield-darwin-amd64`
-   - macOS Apple Silicon: `agentfield-darwin-arm64`
-   - Linux x86_64: `agentfield-linux-amd64`
-   - Linux ARM64: `agentfield-linux-arm64`
-   - Windows: `agentfield-windows-amd64.exe`
-
-2. Make it executable and move to your PATH:
-   ```bash
-   chmod +x agentfield-*
-   mv agentfield-* ~/.local/bin/agentfield
-   ```
-
-3. Add to PATH (if not already):
-   ```bash
-   export PATH="$HOME/.local/bin:$PATH"
-   ```
-
-### Uninstall
-
-```bash
-rm -rf ~/.agentfield
-# Remove PATH entry from ~/.bashrc or ~/.zshrc
-```
+**Need help?** [📚 Installation docs](https://agentfield.ai/docs/installation) • [💬 Discord](https://discord.gg/your-discord)
 
 ---
 
@@ -368,45 +322,7 @@ AgentField uses a **two-layer design**: a stateless **control plane** (like K8s 
 <img src="assets/arch.png" alt="AgentField Architecture - Control Plane and Agent Nodes" width="100%" />
 </div>
 
-```
-┌───────────────────────────────────────────────────────────────────┐
-│                   AGENTFIELD CONTROL PLANE                             │
-│           (Stateless Go Services - Scale Horizontally)            │
-├───────────────────────────────────────────────────────────────────┤
-│                                                                   │
-│  ┌─────────────────┐ ┌──────────────────┐ ┌────────────────┐      │
-│  │ RUNTIME & APIs  │ │ SCALE & OPS      │ │ IDENTITY &     │      │
-│  │                 │ │                  │ │ AUDIT          │      │
-│  ├─────────────────┤ ├──────────────────┤ ├────────────────┤      │
-│  │ • REST/gRPC     │ │ • Workflow       │ │ • W3C DIDs     │      │
-│  │   Gateway       │ │   Engine (DAGs)  │ │ • Verifiable   │      │
-│  │ • Async Queue   │ │ • Prometheus     │ │   Credentials  │      │
-│  │   (durable)     │ │   Metrics        │ │ • Audit Trails │      │
-│  │ • SSE Streaming │ │ • Health Checks  │ │ • Policy       │      │
-│  │ • Agent-to-     │ │ • Auto Retries   │ │   Engine       │      │
-│  │   Agent Calls   │ │ • Graceful       │ │ • Non-         │      │
-│  │ • Shared Memory │ │   Shutdown       │ │   Repudiation  │      │
-│  │   (4 scopes)    │ │ • Backpressure   │ │                │      │
-│  └─────────────────┘ └──────────────────┘ └────────────────┘      │
-│                                                                   │
-│  Deploy independently → Coordinate automatically → Trust built-in │
-└───────────────────────────────────────────────────────────────────┘
-       ▲                        ▲                      ▲
-       │    REST API / gRPC / WebSocket / HTTP         │
-       │    (Language-agnostic communication)          │
-       ▼                        ▼                      ▼
-┌───────────────┐  ┌──────────────┐  ┌─────────────────────┐
-│  Agent Node   │  │ Agent Node   │  │   Agent Node        │
-│  (Container)  │  │ (Container)  │  │   (Container)       │
-│               │  │              │  │                     │
-│  Python SDK   │  │  Go SDK      │  │   Any Language      │
-│  support-     │  │  analytics-  │  │   payment-          │
-│  agent:v2     │  │  agent:v1    │  │   agent:v3          │
-│               │  │              │  │   (REST/gRPC)       │
-│  Team: CS     │  │  Team: Data  │  │   Team: Finance     │
-│  Replicas: 5  │  │  Replicas: 2 │  │   Replicas: 3       │
-└───────────────┘  └──────────────┘  └─────────────────────┘
-```
+
 
 ### Think Kubernetes, But for AI
 

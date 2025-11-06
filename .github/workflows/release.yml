@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version (e.g., v0.1.0) - required for publishing'
+        description: 'Release version (e.g., v0.1.0,v0.1.0-alpha) - required for publishing'
         type: string
         required: false
       publish_release:

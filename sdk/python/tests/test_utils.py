@@ -1,3 +1,4 @@
+import socket
 import pytest
 
 from agentfield.utils import get_free_port
@@ -20,9 +21,13 @@ def test_get_free_port_iterates_until_success(monkeypatch):
             if self._outcome is OSError:
                 raise OSError("port in use")
 
+    real_socket = socket.socket
+
     def fake_socket(*args, **kwargs):
-        outcome = attempts.pop(0)
-        return DummySocket(outcome)
+        if attempts:
+            outcome = attempts.pop(0)
+            return DummySocket(outcome)
+        return real_socket(*args, **kwargs)
 
     monkeypatch.setattr("agentfield.utils.socket.socket", fake_socket)
 

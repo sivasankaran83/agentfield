@@ -15,15 +15,30 @@ research_router = AgentRouter(prefix="research")
 
 @research_router.reasoner()
 async def generate_search_queries(
-    task_description: str, research_question: str
+    task_description: str,
+    research_question: str,
+    dependency_context: str = "",
 ) -> SearchQueries:
-    """Generate focused search queries for a leaf research task."""
+    """Generate focused search queries for a research task, optionally with dependency context."""
+    context_section = ""
+    if dependency_context:
+        context_section = (
+            "\n## DEPENDENCY CONTEXT\n"
+            "You have answers from child tasks. Use this context to enhance your search queries:\n"
+            f"{dependency_context}\n\n"
+            "Your queries should:\n"
+            "- Build on the provided context\n"
+            "- Fill gaps or find additional information needed\n"
+            "- Use context to make queries more specific and targeted\n"
+        )
+
     response = await research_router.ai(
         system=(
-            "You are a search query expert generating queries for a leaf task.\n\n"
+            "You are a search query expert generating queries for a research task.\n\n"
             "## CONTEXT\n"
-            "This is a LEAF TASK - it will be answered via web search.\n"
-            "Leaf tasks are atomic research questions that need specific web search results.\n\n"
+            "This task will be answered via web search.\n"
+            "Generate queries optimized for finding specific answers.\n\n"
+            f"{context_section}"
             "## YOUR TASK\n"
             "Generate 2-4 focused search queries optimized for web search.\n\n"
             "Each query should be:\n"
@@ -35,7 +50,8 @@ async def generate_search_queries(
         ),
         user=(
             f"Research Question: {research_question}\n"
-            f"Leaf Task (needs web search): {task_description}\n\n"
+            f"Task (needs web search): {task_description}\n\n"
+            f"{f'Context from dependencies: {dependency_context}' if dependency_context else ''}\n\n"
             f"Generate 2-4 search queries that will find specific answers to this question."
         ),
         schema=SearchQueries,
@@ -229,6 +245,106 @@ async def synthesize_from_dependencies(
     # Add references to child tasks
     child_refs = [f"Child task {dep.task_id}" for dep in dependency_findings]
     all_sources.extend(child_refs)
+
+    return TaskResult(
+        task_id=task_id,
+        description=task_description,
+        findings=response.findings,
+        sources=list(set(all_sources)),  # Deduplicate
+        confidence=response.confidence,
+    )
+
+
+@research_router.reasoner()
+async def execute_research_task_with_context(
+    task_id: str,
+    task_description: str,
+    research_question: str,
+    dependency_findings: List[TaskResult],
+) -> TaskResult:
+    """
+    Execute research task with dependency context for enhanced search.
+
+    This is for parent tasks that need additional web search beyond
+    what their children provide. Uses dependency context to enhance queries.
+    """
+    # Format dependency context for query generation
+    dependency_context = "\n\n".join(
+        f"Child Task {idx + 1} ({dep.task_id}): {dep.description}\n"
+        f"Answer: {dep.findings}"
+        for idx, dep in enumerate(dependency_findings)
+    )
+
+    # Generate enhanced search queries with context
+    queries_response = await generate_search_queries(
+        task_description=task_description,
+        research_question=research_question,
+        dependency_context=dependency_context,
+    )
+
+    # Execute search
+    search_results = await execute_search(queries_response.queries)
+
+    # Synthesize findings (can reference both search results and dependency context)
+    results_text = ""
+    citations_data = []
+
+    for idx, result in enumerate(search_results.get("results", [])[:10]):
+        title = result.get("title", "Untitled")
+        url = result.get("url", "")
+        content = result.get("content", "")
+        raw_content = result.get("raw_content", "")
+
+        excerpt = raw_content[:500] if raw_content else content[:300]
+        results_text += f"\n[{idx+1}] {title}\nURL: {url}\nContent: {excerpt}\n"
+
+        citations_data.append({"url": url, "title": title, "excerpt": excerpt})
+
+    # Synthesize with both search results and dependency context
+    response = await research_router.ai(
+        system=(
+            "You are a research synthesis expert. Synthesize findings from web search "
+            "AND dependency context into structured findings.\n\n"
+            "## CONTEXT\n"
+            "You have:\n"
+            "1. Web search results (new information)\n"
+            "2. Dependency context (answers from child tasks)\n\n"
+            "## YOUR TASK\n"
+            "Combine both sources to answer the task question comprehensively.\n"
+            "Format findings as:\n"
+            "1. First finding [1] (reference by number)\n"
+            "2. Second finding [2]\n"
+            "etc.\n\n"
+            "Extract citations: for each numbered reference, provide URL, title, and excerpt.\n\n"
+            "Assess confidence: 'high' if comprehensive, 'medium' if partial, 'low' if insufficient."
+        ),
+        user=(
+            f"Research Question: {research_question}\n"
+            f"Task: {task_description}\n\n"
+            f"Dependency Context (from child tasks):\n{dependency_context}\n\n"
+            f"Web Search Results:{results_text}\n\n"
+            f"Synthesize findings combining both sources. "
+            f"Reference web sources by number [1], [2], etc."
+        ),
+        schema=ResearchFindings,
+    )
+
+    # Map citations from search results
+    citation_map = {idx + 1: Citation(**c) for idx, c in enumerate(citations_data)}
+
+    # Update citations in response based on references in findings
+    final_citations = []
+    for i in range(1, len(citations_data) + 1):
+        if f"[{i}]" in response.findings and i in citation_map:
+            final_citations.append(citation_map[i])
+
+    response.citations = final_citations
+
+    # Collect sources from dependencies and search
+    all_sources = []
+    for dep in dependency_findings:
+        all_sources.extend(dep.sources)
+    all_sources.extend([f"{c.title} ({c.url})" for c in final_citations])
 
     return TaskResult(
         task_id=task_id,

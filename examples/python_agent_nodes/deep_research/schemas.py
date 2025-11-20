@@ -125,3 +125,32 @@ class ResearchFindings(BaseModel):
         default_factory=list, description="List of citations referenced in findings"
     )
     confidence: str = Field(description="Confidence level: 'high', 'medium', or 'low'")
+
+
+class TaskMerge(BaseModel):
+    """Task merge instruction for deduplication."""
+
+    keep_task_id: str = Field(description="Task ID to keep (most specific)")
+    merge_task_ids: List[str] = Field(
+        description="Task IDs to merge into the kept task"
+    )
+
+
+class TaskMergeList(BaseModel):
+    """List of task merges for deduplication."""
+
+    merges: List[TaskMerge] = Field(
+        default_factory=list, description="List of task merge instructions"
+    )
+
+
+class SearchStrategy(BaseModel):
+    """Search strategy decision for a parent task."""
+
+    strategy: str = Field(
+        description="Strategy: 'synthesize_only' or 'enhanced_search'"
+    )
+    reasoning: str = Field(
+        default="",
+        description="Brief reasoning for the strategy choice",
+    )

@@ -12,8 +12,9 @@ The AgentField control plane orchestrates agent workflows, manages verifiable cr
 
 ```bash
 # From the repository root
+cd control-plane
 go mod download
-npm --prefix web/client install
+./scripts/build-ui.sh
 
 # Run database migrations (requires AGENTFIELD_DATABASE_URL)
 goose -dir ./migrations postgres "$AGENTFIELD_DATABASE_URL" up
@@ -38,9 +39,12 @@ Sample config files live in `config/`.
 ## Web UI Development
 
 ```bash
-cd web/client
+cd control-plane/web/client
 npm install
 npm run dev
+# Build production assets embedded in Go binaries
+cd ../..
+./scripts/build-ui.sh
 ```
 
 Run the Go server alongside the UI so API calls resolve locally. During production builds the UI is embedded via Go's `embed` package.

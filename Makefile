@@ -55,8 +55,14 @@ test-functional-local:
 		echo "   Or use: make test-functional-local OPENROUTER_API_KEY=your-key"; \
 		exit 1; \
 	fi
+	mkdir -p test-reports tests/functional/logs
+	chmod -R 777 tests/functional/logs || true
 	cd tests/functional && \
 		docker compose -f docker/docker-compose.local.yml up --build --abort-on-container-exit --exit-code-from test-runner
+	@if [ -f tests/functional/logs/functional-tests.log ]; then \
+		cp tests/functional/logs/functional-tests.log test-reports/functional-tests-local.log; \
+	fi
+	@docker cp agentfield-test-runner-local:/reports/junit-local.xml test-reports/ 2>/dev/null || echo "⚠️  No JUnit report found in container"
 	$(MAKE) test-functional-cleanup-local
 
 test-functional-postgres:
@@ -67,8 +73,14 @@ test-functional-postgres:
 		echo "   Or use: make test-functional-postgres OPENROUTER_API_KEY=your-key"; \
 		exit 1; \
 	fi
+	mkdir -p test-reports tests/functional/logs
+	chmod -R 777 tests/functional/logs || true
 	cd tests/functional && \
 		docker compose -f docker/docker-compose.postgres.yml up --build --abort-on-container-exit --exit-code-from test-runner
+	@if [ -f tests/functional/logs/functional-tests.log ]; then \
+		cp tests/functional/logs/functional-tests.log test-reports/functional-tests-postgres.log; \
+	fi
+	@docker cp agentfield-test-runner-postgres:/reports/junit-postgres.xml test-reports/ 2>/dev/null || echo "⚠️  No JUnit report found in container"
 	$(MAKE) test-functional-cleanup-postgres
 
 test-functional-cleanup: test-functional-cleanup-local test-functional-cleanup-postgres

@@ -28,8 +28,8 @@ simulationRouter.reasoner<{
 }, SimulationResult>('runSimulation', async (ctx) => {
   const { scenario, populationSize, context = [], parallelBatchSize = 20 } = ctx.input;
 
-  const scenarioAnalysis = await safeAI(ctx, `Analyze scenario: ${scenario}`);
-  const factorGraph = await safeAI(ctx, `Build factor graph: ${scenarioAnalysis}`);
+  const scenarioAnalysis = await ctx.ai(`Analyze scenario: ${scenario}`);
+  const factorGraph = await ctx.ai(`Build factor graph: ${scenarioAnalysis}`);
 
   await ctx.memory.set('last_scenario', { scenario, factorGraph });
 
@@ -46,7 +46,7 @@ simulationRouter.reasoner<{
 });
 
 simulationRouter.reasoner<{ scenario: string }, any>('decomposeScenario', async (ctx) => {
-  return safeAI(ctx, `Decompose: ${ctx.input.scenario}`);
+  return ctx.ai(`Decompose: ${ctx.input.scenario}`);
 });
 
 const agent = new Agent({
@@ -71,12 +71,3 @@ agent
     console.error('Failed to start simulation agent', err);
     process.exit(1);
   });
-
-async function safeAI(ctx: any, prompt: string) {
-  try {
-    return await ctx.ai(prompt);
-  } catch (err) {
-    console.warn('AI call failed, returning stub text. Set OPENAI_API_KEY to enable real calls.', err);
-    return `stub: ${prompt}`;
-  }
-}

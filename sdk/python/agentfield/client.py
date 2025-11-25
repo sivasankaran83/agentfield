@@ -34,7 +34,6 @@ if sys.version_info >= (3, 9):
 else:
     async def _to_thread(func, *args, **kwargs):
         """Compatibility shim for asyncio.to_thread on Python 3.8."""
-        import concurrent.futures
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, lambda: func(*args, **kwargs))
 

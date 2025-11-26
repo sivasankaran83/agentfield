@@ -84,10 +84,32 @@ class MemoryEventClient:
         self.execution_context = execution_context
         self.websocket: Optional[websockets.WebSocketClientProtocol] = None
         self.is_listening = False
+        self._connect_lock = asyncio.Lock()
         self.subscriptions: List[EventSubscription] = []
         self._reconnect_attempts = 0
         self._max_reconnect_attempts = 5
         self._reconnect_delay = 1.0
+
+    def _is_connected(self) -> bool:
+        """
+        Safely determine if the WebSocket connection is open.
+
+        Supports both legacy WebSocketClientProtocol (with `open`) and
+        newer ClientConnection objects (with `closed`).
+        """
+        if not self.websocket:
+            return False
+
+        open_attr = getattr(self.websocket, "open", None)
+        if isinstance(open_attr, bool):
+            return open_attr
+
+        closed_attr = getattr(self.websocket, "closed", None)
+        if isinstance(closed_attr, bool):
+            return not closed_attr
+
+        # Fallback: assume connected if we have a websocket object
+        return True
 
     async def connect(
         self,
@@ -103,35 +125,36 @@ class MemoryEventClient:
             scope: Scope to filter events by
             scope_id: Scope ID to filter events by
         """
-        if self.websocket and self.websocket.open:
-            return
+        async with self._connect_lock:
+            if self._is_connected():
+                return
 
-        try:
-            headers = self.execution_context.to_headers()
-            ws_url = f"{self.base_url}/api/v1/memory/events/ws"
+            try:
+                headers = self.execution_context.to_headers()
+                ws_url = f"{self.base_url}/api/v1/memory/events/ws"
 
-            # Add query parameters for server-side filtering
-            query_params = []
-            if patterns:
-                query_params.append(f"patterns={','.join(patterns)}")
-            if scope:
-                query_params.append(f"scope={scope}")
-            if scope_id:
-                query_params.append(f"scope_id={scope_id}")
+                # Add query parameters for server-side filtering
+                query_params = []
+                if patterns:
+                    query_params.append(f"patterns={','.join(patterns)}")
+                if scope:
+                    query_params.append(f"scope={scope}")
+                if scope_id:
+                    query_params.append(f"scope_id={scope_id}")
 
-            if query_params:
-                ws_url += "?" + "&".join(query_params)
+                if query_params:
+                    ws_url += "?" + "&".join(query_params)
 
-            self.websocket = await websockets.connect(
-                ws_url, additional_headers=headers
-            )
-            self.is_listening = True
-            self._reconnect_attempts = 0
-            asyncio.create_task(self._listen())
+                self.websocket = await websockets.connect(
+                    ws_url, additional_headers=headers
+                )
+                self.is_listening = True
+                self._reconnect_attempts = 0
+                asyncio.create_task(self._listen())
 
-        except Exception as e:
-            log_error(f"Failed to connect to memory events: {e}")
-            await self._handle_reconnect()
+            except Exception as e:
+                log_error(f"Failed to connect to memory events: {e}")
+                await self._handle_reconnect()
 
     async def _listen(self):
         """Listens for incoming messages and dispatches them to subscribers."""
@@ -153,13 +176,24 @@ class MemoryEventClient:
                             log_error(f"Error in event callback: {e}")
 
             except websockets.exceptions.ConnectionClosed:
+                # Connection closed cleanly or unexpectedly; try to reconnect
                 self.is_listening = False
                 self.websocket = None
                 if self._reconnect_attempts < self._max_reconnect_attempts:
                     await self._handle_reconnect()
                 break
             except Exception as e:
+                # Any unexpected error in the listener should reset the connection
                 log_error(f"Error in event listener: {e}")
+                self.is_listening = False
+                if self.websocket:
+                    try:
+                        await self.websocket.close()
+                    except Exception:
+                        pass
+                    self.websocket = None
+                if self._reconnect_attempts < self._max_reconnect_attempts:
+                    await self._handle_reconnect()
                 break
 
     async def _handle_reconnect(self):
@@ -208,12 +242,11 @@ class MemoryEventClient:
         subscription = EventSubscription(patterns, callback, scope, scope_id)
         self.subscriptions.append(subscription)
 
-        # If not connected, connect with the new patterns
-        if not self.websocket or not self.websocket.open:
-            all_patterns = []
-            for sub in self.subscriptions:
-                all_patterns.extend(sub.patterns)
-            asyncio.create_task(self.connect(patterns=list(set(all_patterns))))
+        # If not connected, establish (or re-establish) the WebSocket connection.
+        # We rely on client-side pattern matching, so we don't need to send
+        # pattern filters to the server.
+        if not self._is_connected():
+            asyncio.create_task(self.connect())
 
         return subscription
 

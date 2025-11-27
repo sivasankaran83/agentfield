@@ -31,14 +31,17 @@ export interface MemoryConfig {
   ttl?: number;
 }
 
-export type MemoryScope = 'workflow' | 'session' | 'agent' | 'global';
+export type MemoryScope = 'workflow' | 'session' | 'actor' | 'global';
 
 export interface AgentCapability {
   agentId: string;
   baseUrl: string;
   version: string;
   healthStatus: string;
+  deploymentType?: string;
+  lastHeartbeat?: string;
   reasoners: ReasonerCapability[];
+  skills: SkillCapability[];
 }
 
 export interface ReasonerCapability {
@@ -47,14 +50,73 @@ export interface ReasonerCapability {
   tags: string[];
   inputSchema?: any;
   outputSchema?: any;
+  examples?: any[];
+  invocationTarget: string;
+}
+
+export interface SkillCapability {
+  id: string;
+  description?: string;
+  tags: string[];
+  inputSchema?: any;
   invocationTarget: string;
 }
 
 export interface DiscoveryResponse {
-  discoveredAt: Date;
+  discoveredAt: string;
   totalAgents: number;
   totalReasoners: number;
+  totalSkills: number;
+  pagination: DiscoveryPagination;
   capabilities: AgentCapability[];
+}
+
+export interface DiscoveryPagination {
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+}
+
+export interface CompactCapability {
+  id: string;
+  agentId: string;
+  target: string;
+  tags: string[];
+}
+
+export interface CompactDiscoveryResponse {
+  discoveredAt: string;
+  reasoners: CompactCapability[];
+  skills: CompactCapability[];
+}
+
+export type DiscoveryFormat = 'json' | 'compact' | 'xml';
+
+export interface DiscoveryResult {
+  format: DiscoveryFormat;
+  raw: string;
+  json?: DiscoveryResponse;
+  compact?: CompactDiscoveryResponse;
+  xml?: string;
+}
+
+export interface DiscoveryOptions {
+  agent?: string;
+  nodeId?: string;
+  agentIds?: string[];
+  nodeIds?: string[];
+  reasoner?: string;
+  skill?: string;
+  tags?: string[];
+  includeInputSchema?: boolean;
+  includeOutputSchema?: boolean;
+  includeDescriptions?: boolean;
+  includeExamples?: boolean;
+  format?: DiscoveryFormat;
+  healthStatus?: string;
+  limit?: number;
+  offset?: number;
+  headers?: Record<string, string>;
 }
 
 export interface AgentState {

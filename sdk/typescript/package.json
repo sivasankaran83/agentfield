@@ -13,7 +13,8 @@
     "dev": "tsup --watch",
     "lint": "tsc --noEmit",
     "test": "vitest",
-    "e:s": "npm run build -- --silent && node dist/examples/simulation/main.js"
+    "e:s": "npm run build -- --silent && node dist/examples/simulation/main.js",
+    "e:d": "npm run build -- --silent && node dist/examples/discovery-memory/main.js"
   },
   "exports": {
     ".": {

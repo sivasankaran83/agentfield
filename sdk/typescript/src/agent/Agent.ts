@@ -7,7 +7,7 @@ import { SkillRegistry } from './SkillRegistry.js';
 import { AgentRouter } from '../router/AgentRouter.js';
 import type { ReasonerHandler, ReasonerOptions } from '../types/reasoner.js';
 import type { SkillHandler, SkillOptions } from '../types/skill.js';
-import { ExecutionContext } from '../context/ExecutionContext.js';
+import { ExecutionContext, type ExecutionMetadata } from '../context/ExecutionContext.js';
 import { ReasonerContext } from '../context/ReasonerContext.js';
 import { SkillContext } from '../context/SkillContext.js';
 import { AIClient } from '../ai/AIClient.js';
@@ -16,6 +16,8 @@ import { MemoryClient } from '../memory/MemoryClient.js';
 import { MemoryEventClient } from '../memory/MemoryEventClient.js';
 import { MemoryInterface, type MemoryChangeEvent, type MemoryWatchHandler } from '../memory/MemoryInterface.js';
 import { matchesPattern } from '../utils/pattern.js';
+import { WorkflowReporter } from '../workflow/WorkflowReporter.js';
+import type { DiscoveryOptions } from '../types/agent.js';
 
 export class Agent {
   readonly config: AgentConfig;
@@ -79,17 +81,48 @@ export class Agent {
     this.memoryEventClient.start();
   }
 
+  discover(options?: DiscoveryOptions) {
+    return this.agentFieldClient.discoverCapabilities(options);
+  }
+
   getAIClient() {
     return this.aiClient;
   }
 
-  getMemoryInterface(metadata?: { workflowId?: string; sessionId?: string }) {
-    const defaultScopeId = metadata?.workflowId ?? metadata?.sessionId;
+  getMemoryInterface(metadata?: ExecutionMetadata) {
+    const defaultScope = this.config.memoryConfig?.defaultScope ?? 'workflow';
+    const defaultScopeId =
+      defaultScope === 'session'
+        ? metadata?.sessionId
+        : defaultScope === 'actor'
+          ? metadata?.actorId
+          : metadata?.workflowId ?? metadata?.runId ?? metadata?.sessionId ?? metadata?.actorId;
     return new MemoryInterface({
       client: this.memoryClient,
       eventClient: this.memoryEventClient,
-      defaultScope: this.config.memoryConfig?.defaultScope ?? 'workflow',
-      defaultScopeId
+      defaultScope,
+      defaultScopeId,
+      metadata: {
+        workflowId: metadata?.workflowId ?? metadata?.runId,
+        sessionId: metadata?.sessionId,
+        actorId: metadata?.actorId,
+        runId: metadata?.runId,
+        executionId: metadata?.executionId,
+        parentExecutionId: metadata?.parentExecutionId,
+        callerDid: metadata?.callerDid,
+        targetDid: metadata?.targetDid,
+        agentNodeDid: metadata?.agentNodeDid,
+        agentNodeId: this.config.nodeId
+      }
+    });
+  }
+
+  getWorkflowReporter(metadata: ExecutionMetadata) {
+    return new WorkflowReporter(this.agentFieldClient, {
+      executionId: metadata.executionId,
+      runId: metadata.runId,
+      workflowId: metadata.workflowId,
+      agentNodeId: this.config.nodeId
     });
   }
 
@@ -186,7 +219,8 @@ export class Agent {
               res: dummyRes,
               agent: this,
               aiClient: this.aiClient,
-              memory: this.getMemoryInterface(execCtx.metadata)
+              memory: this.getMemoryInterface(execCtx.metadata),
+              workflow: this.getWorkflowReporter(execCtx.metadata)
             })
           );
           await emitEvent('succeeded', result);
@@ -201,9 +235,14 @@ export class Agent {
     const metadata = ExecutionContext.getCurrent()?.metadata;
     return this.agentFieldClient.execute(target, input, {
       runId: metadata?.runId ?? metadata?.executionId,
+      workflowId: metadata?.workflowId ?? metadata?.runId,
       parentExecutionId: metadata?.executionId,
       sessionId: metadata?.sessionId,
-      actorId: metadata?.actorId
+      actorId: metadata?.actorId,
+      callerDid: metadata?.callerDid,
+      targetDid: metadata?.targetDid,
+      agentNodeDid: metadata?.agentNodeDid,
+      agentNodeId: this.config.nodeId
     });
   }
 
@@ -267,7 +306,8 @@ export class Agent {
           res,
           agent: this,
           aiClient: this.aiClient,
-          memory: this.getMemoryInterface(metadata)
+          memory: this.getMemoryInterface(metadata),
+          workflow: this.getWorkflowReporter(metadata)
         });
 
         const result = await reasoner.handler(ctx);
@@ -298,7 +338,8 @@ export class Agent {
           req,
           res,
           agent: this,
-          memory: this.getMemoryInterface(metadata)
+          memory: this.getMemoryInterface(metadata),
+          workflow: this.getWorkflowReporter(metadata)
         });
 
         const result = skill.handler(ctx);
@@ -312,12 +353,15 @@ export class Agent {
   private buildMetadata(req: express.Request) {
     const executionIdHeader = req.headers['x-execution-id'] as string | undefined;
     const runIdHeader = req.headers['x-run-id'] as string | undefined;
+    const executionId = executionIdHeader ?? randomUUID();
+    const runId = runIdHeader ?? executionId;
+    const workflowIdHeader = (req.headers['x-workflow-id'] as string | undefined) ?? runId;
     return {
-      executionId: executionIdHeader ?? randomUUID(),
-      runId: runIdHeader ?? executionIdHeader ?? undefined,
+      executionId,
+      runId,
       sessionId: req.headers['x-session-id'] as string | undefined,
       actorId: req.headers['x-actor-id'] as string | undefined,
-      workflowId: req.headers['x-workflow-id'] as string | undefined,
+      workflowId: workflowIdHeader,
       parentExecutionId: req.headers['x-parent-execution-id'] as string | undefined,
       callerDid: req.headers['x-caller-did'] as string | undefined,
       targetDid: req.headers['x-target-did'] as string | undefined,

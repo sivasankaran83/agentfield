@@ -1,5 +1,21 @@
 import axios, { AxiosInstance } from 'axios';
-import type { AgentConfig, HealthStatus } from '../types/agent.js';
+import type {
+  AgentConfig,
+  DiscoveryOptions,
+  DiscoveryFormat,
+  DiscoveryResult,
+  DiscoveryResponse,
+  CompactDiscoveryResponse,
+  HealthStatus
+} from '../types/agent.js';
+
+export interface ExecutionStatusUpdate {
+  status?: string;
+  result?: Record<string, any>;
+  error?: string;
+  durationMs?: number;
+  progress?: number;
+}
 
 export class AgentFieldClient {
   private readonly http: AxiosInstance;
@@ -29,16 +45,26 @@ export class AgentFieldClient {
     input: any,
     metadata?: {
       runId?: string;
+      workflowId?: string;
       parentExecutionId?: string;
       sessionId?: string;
       actorId?: string;
+      callerDid?: string;
+      targetDid?: string;
+      agentNodeDid?: string;
+      agentNodeId?: string;
     }
   ): Promise<T> {
     const headers: Record<string, string> = {};
     if (metadata?.runId) headers['X-Run-ID'] = metadata.runId;
+    if (metadata?.workflowId) headers['X-Workflow-ID'] = metadata.workflowId;
     if (metadata?.parentExecutionId) headers['X-Parent-Execution-ID'] = metadata.parentExecutionId;
     if (metadata?.sessionId) headers['X-Session-ID'] = metadata.sessionId;
     if (metadata?.actorId) headers['X-Actor-ID'] = metadata.actorId;
+    if (metadata?.callerDid) headers['X-Caller-DID'] = metadata.callerDid;
+    if (metadata?.targetDid) headers['X-Target-DID'] = metadata.targetDid;
+    if (metadata?.agentNodeDid) headers['X-Agent-Node-DID'] = metadata.agentNodeDid;
+    if (metadata?.agentNodeId) headers['X-Agent-Node-ID'] = metadata.agentNodeId;
 
     const res = await this.http.post(
       `/api/v1/execute/${target}`,
@@ -83,5 +109,144 @@ export class AgentFieldClient {
     await this.http.post('/api/v1/workflow/executions/events', payload).catch(() => {
       // Best-effort; avoid throwing to keep agent execution resilient
     });
+  }
+
+  async updateExecutionStatus(executionId: string, update: ExecutionStatusUpdate) {
+    if (!executionId) {
+      throw new Error('executionId is required to update workflow status');
+    }
+
+    const payload = {
+      status: update.status ?? 'running',
+      result: update.result,
+      error: update.error,
+      duration_ms: update.durationMs,
+      progress: update.progress !== undefined ? Math.round(update.progress) : undefined
+    };
+
+    await this.http.post(`/api/v1/executions/${executionId}/status`, payload);
+  }
+
+  async discoverCapabilities(options: DiscoveryOptions = {}): Promise<DiscoveryResult> {
+    const format = (options.format ?? 'json').toLowerCase() as DiscoveryFormat;
+    const params: Record<string, string> = { format };
+    const dedupe = (values?: string[]) =>
+      Array.from(new Set((values ?? []).filter(Boolean))).map((v) => v!);
+
+    const combinedAgents = dedupe([
+      ...(options.agent ? [options.agent] : []),
+      ...(options.nodeId ? [options.nodeId] : []),
+      ...(options.agentIds ?? []),
+      ...(options.nodeIds ?? [])
+    ]);
+
+    if (combinedAgents.length === 1) {
+      params.agent = combinedAgents[0];
+    } else if (combinedAgents.length > 1) {
+      params.agent_ids = combinedAgents.join(',');
+    }
+
+    if (options.reasoner) params.reasoner = options.reasoner;
+    if (options.skill) params.skill = options.skill;
+    if (options.tags?.length) params.tags = dedupe(options.tags).join(',');
+
+    if (options.includeInputSchema !== undefined) {
+      params.include_input_schema = String(Boolean(options.includeInputSchema));
+    }
+    if (options.includeOutputSchema !== undefined) {
+      params.include_output_schema = String(Boolean(options.includeOutputSchema));
+    }
+    if (options.includeDescriptions !== undefined) {
+      params.include_descriptions = String(Boolean(options.includeDescriptions));
+    }
+    if (options.includeExamples !== undefined) {
+      params.include_examples = String(Boolean(options.includeExamples));
+    }
+    if (options.healthStatus) params.health_status = options.healthStatus.toLowerCase();
+    if (options.limit !== undefined) params.limit = String(options.limit);
+    if (options.offset !== undefined) params.offset = String(options.offset);
+
+    const res = await this.http.get('/api/v1/discovery/capabilities', {
+      params,
+      headers: {
+        Accept: format === 'xml' ? 'application/xml' : 'application/json',
+        ...(options.headers ?? {})
+      },
+      responseType: format === 'xml' ? 'text' : 'json',
+      transformResponse: (data) => data // preserve raw body for xml
+    });
+
+    const raw = typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
+    if (format === 'xml') {
+      return { format: 'xml', raw, xml: raw };
+    }
+
+    const parsed = typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
+    if (format === 'compact') {
+      return {
+        format: 'compact',
+        raw,
+        compact: this.mapCompactDiscovery(parsed as any)
+      };
+    }
+
+    return {
+      format: 'json',
+      raw,
+      json: this.mapDiscoveryResponse(parsed as any)
+    };
+  }
+
+  private mapDiscoveryResponse(payload: any): DiscoveryResponse {
+    return {
+      discoveredAt: String(payload?.discovered_at ?? ''),
+      totalAgents: Number(payload?.total_agents ?? 0),
+      totalReasoners: Number(payload?.total_reasoners ?? 0),
+      totalSkills: Number(payload?.total_skills ?? 0),
+      pagination: {
+        limit: Number(payload?.pagination?.limit ?? 0),
+        offset: Number(payload?.pagination?.offset ?? 0),
+        hasMore: Boolean(payload?.pagination?.has_more)
+      },
+      capabilities: (payload?.capabilities ?? []).map((cap: any) => ({
+        agentId: cap?.agent_id ?? '',
+        baseUrl: cap?.base_url ?? '',
+        version: cap?.version ?? '',
+        healthStatus: cap?.health_status ?? '',
+        deploymentType: cap?.deployment_type,
+        lastHeartbeat: cap?.last_heartbeat,
+        reasoners: (cap?.reasoners ?? []).map((r: any) => ({
+          id: r?.id ?? '',
+          description: r?.description,
+          tags: r?.tags ?? [],
+          inputSchema: r?.input_schema,
+          outputSchema: r?.output_schema,
+          examples: r?.examples,
+          invocationTarget: r?.invocation_target ?? ''
+        })),
+        skills: (cap?.skills ?? []).map((s: any) => ({
+          id: s?.id ?? '',
+          description: s?.description,
+          tags: s?.tags ?? [],
+          inputSchema: s?.input_schema,
+          invocationTarget: s?.invocation_target ?? ''
+        }))
+      }))
+    };
+  }
+
+  private mapCompactDiscovery(payload: any): CompactDiscoveryResponse {
+    const toCap = (cap: any) => ({
+      id: cap?.id ?? '',
+      agentId: cap?.agent_id ?? '',
+      target: cap?.target ?? '',
+      tags: cap?.tags ?? []
+    });
+
+    return {
+      discoveredAt: String(payload?.discovered_at ?? ''),
+      reasoners: (payload?.reasoners ?? []).map(toCap),
+      skills: (payload?.skills ?? []).map(toCap)
+    };
   }
 }

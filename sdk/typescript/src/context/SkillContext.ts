@@ -2,6 +2,8 @@ import type express from 'express';
 import { ExecutionContext } from './ExecutionContext.js';
 import type { Agent } from '../agent/Agent.js';
 import type { MemoryInterface } from '../memory/MemoryInterface.js';
+import type { WorkflowReporter } from '../workflow/WorkflowReporter.js';
+import type { DiscoveryOptions } from '../types/agent.js';
 
 export class SkillContext<TInput = any> {
   readonly input: TInput;
@@ -12,6 +14,7 @@ export class SkillContext<TInput = any> {
   readonly res: express.Response;
   readonly agent: Agent;
   readonly memory: MemoryInterface;
+  readonly workflow: WorkflowReporter;
 
   constructor(params: {
     input: TInput;
@@ -22,6 +25,7 @@ export class SkillContext<TInput = any> {
     res: express.Response;
     agent: Agent;
     memory: MemoryInterface;
+    workflow: WorkflowReporter;
   }) {
     this.input = params.input;
     this.executionId = params.executionId;
@@ -31,6 +35,11 @@ export class SkillContext<TInput = any> {
     this.res = params.res;
     this.agent = params.agent;
     this.memory = params.memory;
+    this.workflow = params.workflow;
+  }
+
+  discover(options?: DiscoveryOptions) {
+    return this.agent.discover(options);
   }
 }
 
@@ -46,6 +55,7 @@ export function getCurrentSkillContext<TInput = any>(): SkillContext<TInput> | u
     req,
     res,
     agent,
-    memory: agent.getMemoryInterface(metadata)
+    memory: agent.getMemoryInterface(metadata),
+    workflow: agent.getWorkflowReporter(metadata)
   });
 }

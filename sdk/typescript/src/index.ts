@@ -8,6 +8,7 @@ export * from './ai/AIClient.js';
 export * from './memory/MemoryInterface.js';
 export * from './memory/MemoryClient.js';
 export * from './memory/MemoryEventClient.js';
+export * from './workflow/WorkflowReporter.js';
 export * from './types/agent.js';
 export * from './types/reasoner.js';
 export * from './types/skill.js';

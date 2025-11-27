@@ -3,6 +3,8 @@ import { ExecutionContext } from './ExecutionContext.js';
 import type { AIClient, AIRequestOptions, AIStream } from '../ai/AIClient.js';
 import type { MemoryInterface } from '../memory/MemoryInterface.js';
 import type { Agent } from '../agent/Agent.js';
+import type { WorkflowReporter } from '../workflow/WorkflowReporter.js';
+import type { DiscoveryOptions } from '../types/agent.js';
 
 export class ReasonerContext<TInput = any> {
   readonly input: TInput;
@@ -20,6 +22,7 @@ export class ReasonerContext<TInput = any> {
   readonly agent: Agent;
   readonly aiClient: AIClient;
   readonly memory: MemoryInterface;
+  readonly workflow: WorkflowReporter;
 
   constructor(params: {
     input: TInput;
@@ -37,6 +40,7 @@ export class ReasonerContext<TInput = any> {
     agent: Agent;
     aiClient: AIClient;
     memory: MemoryInterface;
+    workflow: WorkflowReporter;
   }) {
     this.input = params.input;
     this.executionId = params.executionId;
@@ -53,6 +57,7 @@ export class ReasonerContext<TInput = any> {
     this.agent = params.agent;
     this.aiClient = params.aiClient;
     this.memory = params.memory;
+    this.workflow = params.workflow;
   }
 
   ai(prompt: string, options?: AIRequestOptions) {
@@ -65,6 +70,10 @@ export class ReasonerContext<TInput = any> {
 
   call(target: string, input: any) {
     return this.agent.call(target, input);
+  }
+
+  discover(options?: DiscoveryOptions) {
+    return this.agent.discover(options);
   }
 }
 
@@ -87,6 +96,7 @@ export function getCurrentContext<TInput = any>(): ReasonerContext<TInput> | und
     res,
     agent,
     aiClient: agent.getAIClient(),
-    memory: agent.getMemoryInterface(metadata)
+    memory: agent.getMemoryInterface(metadata),
+    workflow: agent.getWorkflowReporter(metadata)
   });
 }

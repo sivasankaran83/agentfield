@@ -1,6 +1,6 @@
 import type express from 'express';
 import { ExecutionContext } from './ExecutionContext.js';
-import type { AIClient, AIRequestOptions, AIStream } from '../ai/AIClient.js';
+import type { AIClient, AIRequestOptions, AIStream, ZodSchema } from '../ai/AIClient.js';
 import type { MemoryInterface } from '../memory/MemoryInterface.js';
 import type { Agent } from '../agent/Agent.js';
 import type { WorkflowReporter } from '../workflow/WorkflowReporter.js';
@@ -64,7 +64,9 @@ export class ReasonerContext<TInput = any> {
     this.did = params.did;
   }
 
-  ai(prompt: string, options?: AIRequestOptions) {
+  ai<T>(prompt: string, options: AIRequestOptions & { schema: ZodSchema<T> }): Promise<T>;
+  ai(prompt: string, options?: AIRequestOptions): Promise<string>;
+  ai(prompt: string, options?: AIRequestOptions): Promise<unknown> {
     return this.aiClient.generate(prompt, options);
   }
 

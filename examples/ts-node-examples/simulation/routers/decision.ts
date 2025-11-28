@@ -8,7 +8,7 @@ import {
   type EntityProfile,
   type ScenarioAnalysis
 } from '../schemas.js';
-import { formatContext, parseWithSchema } from '../utils.js';
+import { formatContext } from '../utils.js';
 
 export const decisionRouter = new AgentRouter({ prefix: 'decision' });
 
@@ -56,28 +56,14 @@ Be concise and realistic.
 
 RESPONSE FORMAT: Return ONLY valid JSON with fields decision, confidence, keyFactor, tradeOff, reasoning. Do not include entityId. No prose, no markdown.`;
 
+    const DecisionWithoutIdSchema = EntityDecisionSchema.omit({ entityId: true });
+
     try {
-      const DecisionWithoutIdSchema = EntityDecisionSchema.omit({ entityId: true });
-      const raw = await ctx.ai(prompt, { schema: EntityDecisionSchema });
-      const decision =
-        parseWithSchema(
-          raw,
-          DecisionWithoutIdSchema as unknown as z.ZodSchema<Omit<EntityDecision, 'entityId'>>,
-          'Entity decision',
-          () => ({
-            decision: scenarioAnalysis.decisionOptions[0] ?? 'unknown',
-            confidence: 0,
-            keyFactor: 'Error during decision generation',
-            tradeOff: 'Unable to evaluate',
-            reasoning: 'Failed to generate decision'
-          })
-        ) ?? {
-          decision: scenarioAnalysis.decisionOptions[0] ?? 'unknown',
-          confidence: 0,
-          keyFactor: 'Error during decision generation',
-          tradeOff: 'Unable to evaluate',
-          reasoning: 'Failed to generate decision'
-        };
+      // Lower temperature for more consistent structured output
+      const decision = await ctx.ai<Omit<EntityDecision, 'entityId'>>(prompt, {
+        schema: DecisionWithoutIdSchema,
+        temperature: 0.4
+      });
       return { ...decision, entityId: entity.entityId };
     } catch (err) {
       console.warn(`⚠️  Failed entity ${entity.entityId}: ${String(err).slice(0, 120)}`);

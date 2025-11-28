@@ -65,10 +65,12 @@ Make entities feel realistic and distinct from each other.
 
 RESPONSE FORMAT: Return ONLY a JSON array of objects (no wrapper), length ${count}, where each object has all attributes. No prose, no markdown, no code fences.`;
 
-      const CallBatchSchema = z.array(z.record(z.any())).length(count);
+      // Use lenient schema: accept 1+ items (model may return fewer than requested)
+      const CallBatchSchema = z.array(z.record(z.any())).min(1);
 
       try {
-        const raw = (await ctx.ai(prompt, { schema: CallBatchSchema })) as unknown;
+        // Lower temperature for more consistent structured output
+        const raw = (await ctx.ai(prompt, { schema: CallBatchSchema, temperature: 0.4 })) as unknown;
         // Accept either an array of entities or an object with { entities }
         const parsedArray =
           parseWithSchema(raw, CallBatchSchema, 'Entity mini-batch', () => [], false) ??

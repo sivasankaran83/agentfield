@@ -1,9 +1,48 @@
-import { embed, embedMany, generateText, streamText, type StreamTextResult } from 'ai';
+import {
+  embed,
+  embedMany,
+  generateObject,
+  generateText,
+  streamText
+} from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
-import type { ZodSchema } from 'zod';
+import type { z } from 'zod';
 import type { AIConfig } from '../types/agent.js';
 import { StatelessRateLimiter } from './RateLimiter.js';
+
+export type ZodSchema<T> = z.Schema<T, z.ZodTypeDef, any>;
+
+/**
+ * Attempts to repair malformed JSON text from model responses.
+ * Handles common issues like markdown code blocks, trailing commas, etc.
+ */
+function repairJsonText(text: string): string | null {
+  let cleaned = text.trim();
+
+  // Remove markdown code blocks (```json ... ``` or ``` ... ```)
+  const codeBlockMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (codeBlockMatch) {
+    cleaned = codeBlockMatch[1].trim();
+  }
+
+  // Try to extract JSON object/array if there's extra text
+  const jsonMatch = cleaned.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+  if (jsonMatch) {
+    cleaned = jsonMatch[1];
+  }
+
+  // Remove trailing commas before } or ]
+  cleaned = cleaned.replace(/,(\s*[}\]])/g, '$1');
+
+  // Try to parse to verify it's valid
+  try {
+    JSON.parse(cleaned);
+    return cleaned;
+  } catch {
+    return null;
+  }
+}
 
 export interface AIRequestOptions {
   system?: string;
@@ -12,6 +51,13 @@ export interface AIRequestOptions {
   temperature?: number;
   maxTokens?: number;
   provider?: AIConfig['provider'];
+  /**
+   * Mode for structured output generation.
+   * - 'auto': Let the provider choose (default in ai-sdk, uses tool calling)
+   * - 'json': Use JSON mode (more compatible across providers/models)
+   * - 'tool': Force tool calling mode
+   */
+  mode?: 'auto' | 'json' | 'tool';
 }
 
 export type AIStream = AsyncIterable<string>;
@@ -38,39 +84,55 @@ export class AIClient {
     };
   }
 
+  async generate<T>(prompt: string, options: AIRequestOptions & { schema: ZodSchema<T> }): Promise<T>;
+  async generate(prompt: string, options?: AIRequestOptions): Promise<string>;
   async generate<T = any>(prompt: string, options: AIRequestOptions = {}): Promise<T | string> {
     const model = this.buildModel(options);
+
+    if (options.schema) {
+      const schema = options.schema;
+      // Default to 'json' mode for better compatibility across providers
+      // 'auto' mode uses tool calling which some models/providers don't support well
+      const mode = options.mode ?? 'json';
+      const call = async () =>
+        generateObject({
+          model: model,
+          prompt,
+          output: 'object',
+          mode,
+          system: options.system,
+          temperature: options.temperature ?? this.config.temperature,
+          maxOutputTokens: options.maxTokens ?? this.config.maxTokens,
+          schema,
+          experimental_repairText: async ({ text }) => repairJsonText(text)
+        });
+
+      const response = await this.withRateLimitRetry(call);
+      return response.object as T;
+    }
+
     const call = async () =>
       generateText({
-        // type cast to avoid provider-model signature drift
-        model: model as any,
+        model: model,
         prompt,
         system: options.system,
         temperature: options.temperature ?? this.config.temperature,
-        maxTokens: options.maxTokens ?? this.config.maxTokens,
-        schema: options.schema
-      } as any);
+        maxOutputTokens: options.maxTokens ?? this.config.maxTokens
+      });
 
     const response = await this.withRateLimitRetry(call);
-
-    if (options.schema && (response as any).object !== undefined) {
-      return (response as any).object as T;
-    }
-
-    return (response as any).text as string;
+    return (response).text as string;
   }
 
   async stream(prompt: string, options: AIRequestOptions = {}): Promise<AIStream> {
     const model = this.buildModel(options);
-    const streamResult: StreamTextResult<any> = await this.withRateLimitRetry(() =>
-      streamText({
-        model: model as any,
-        prompt,
-        system: options.system,
-        temperature: options.temperature ?? this.config.temperature,
-        maxTokens: options.maxTokens ?? this.config.maxTokens
-      } as any)
-    );
+    const streamResult = streamText({
+      model: model,
+      prompt,
+      system: options.system,
+      temperature: options.temperature ?? this.config.temperature,
+      maxOutputTokens: options.maxTokens ?? this.config.maxTokens
+    });
 
     return streamResult.textStream;
   }
@@ -79,22 +141,22 @@ export class AIClient {
     const model = this.buildEmbeddingModel(options);
     const result = await this.withRateLimitRetry(() =>
       embed({
-        model: model as any,
+        model: model,
         value
-      } as any)
+      })
     );
-    return (result as any).embedding as number[];
+    return (result).embedding as number[];
   }
 
   async embedMany(values: string[], options: AIEmbeddingOptions = {}) {
     const model = this.buildEmbeddingModel(options);
     const result = await this.withRateLimitRetry(() =>
       embedMany({
-        model: model as any,
+        model: model,
         values
-      } as any)
+      })
     );
-    return (result as any).embeddings as number[][];
+    return (result).embeddings as number[][];
   }
 
   private buildModel(options: AIRequestOptions) {
@@ -106,7 +168,7 @@ export class AIClient {
         apiKey: this.config.apiKey,
         baseURL: this.config.baseUrl
       });
-      return anthropic(modelName) as any;
+      return anthropic(modelName);
     }
 
     // Default to OpenAI / OpenRouter compatible models
@@ -114,7 +176,8 @@ export class AIClient {
       apiKey: this.config.apiKey,
       baseURL: this.config.baseUrl
     });
-    return openai(modelName) as any;
+
+    return openai(modelName);
   }
 
   private buildEmbeddingModel(options: AIEmbeddingOptions) {
@@ -128,13 +191,13 @@ export class AIClient {
     const openai = createOpenAI({
       apiKey: this.config.apiKey,
       baseURL: this.config.baseUrl
-    }) as any;
+    });
 
     if (typeof openai.embedding !== 'function') {
       throw new Error('Embedding model is not available for the configured provider');
     }
 
-    return openai.embedding(modelName) as any;
+    return openai.embedding(modelName);
   }
 
   private getRateLimiter() {

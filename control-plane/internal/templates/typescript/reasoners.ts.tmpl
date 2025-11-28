@@ -30,8 +30,9 @@ reasonersRouter.reasoner<{ message: string }, { original: string; echoed: string
 //   confidence: z.number().min(0).max(1),
 //   reasoning: z.string()
 // });
+// type SentimentResult = z.infer<typeof sentimentSchema>;
 //
-// reasonersRouter.reasoner<{ text: string }, z.infer<typeof sentimentSchema> & { text: string }>(
+// reasonersRouter.reasoner<{ text: string }, SentimentResult & { text: string }>(
 //   'analyzeSentiment',
 //   async (ctx) => {
 //     /**
@@ -42,20 +43,11 @@ reasonersRouter.reasoner<{ message: string }, { original: string; echoed: string
 //      *   -H "Content-Type: application/json" \
 //      *   -d '{"input": {"text": "I love this product!"}}'
 //      */
-//     const result = await ctx.ai<z.infer<typeof sentimentSchema>>(
-//       `You are a sentiment analysis expert. Analyze the sentiment of this text and respond as JSON: ${ctx.input.text}`,
-//       {
-//         schema: sentimentSchema,
-//         temperature: 0.2
-//       }
+//     const sentiment = await ctx.ai(
+//       `You are a sentiment analysis expert. Analyze the sentiment of this text.`,
+//       { schema: sentimentSchema, temperature: 0.2 }
 //     );
 //
-//     // Add a note for observability
-//     await ctx.workflow.progress(100, {
-//       status: 'succeeded',
-//       result: { sentiment: result.sentiment, confidence: result.confidence }
-//     });
-//
-//     return { ...result, text: ctx.input.text };
+//     return { ...sentiment, text: ctx.input.text };
 //   }
 // );

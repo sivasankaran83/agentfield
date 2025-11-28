@@ -1,5 +1,11 @@
 import { z } from 'zod';
 
+// Helper: coerce string numbers to actual numbers (handles "0.8" -> 0.8)
+const coercedNumber = z.coerce.number();
+
+// Helper: coerce record values to numbers (for outcomeDistribution)
+const coercedNumberRecord = z.record(z.coerce.number());
+
 export const ScenarioInputSchema = z.object({
   scenario: z.string(),
   context: z.array(z.string()).optional()
@@ -9,9 +15,9 @@ export type ScenarioInput = z.infer<typeof ScenarioInputSchema>;
 export const ScenarioAnalysisSchema = z.object({
   entityType: z.string(),
   decisionType: z.string(),
-  decisionOptions: z.array(z.string()),
+  decisionOptions: z.array(z.string()).min(1), // At least one option
   analysis: z.string(),
-  keyAttributes: z.array(z.string())
+  keyAttributes: z.array(z.string()).default([]) // Default to empty if missing
 });
 export type ScenarioAnalysis = z.infer<typeof ScenarioAnalysisSchema>;
 
@@ -32,15 +38,15 @@ export type EntityProfile = z.infer<typeof EntityProfileSchema>;
 export const EntityDecisionSchema = z.object({
   entityId: z.string(),
   decision: z.string(),
-  confidence: z.number(),
+  confidence: coercedNumber.min(0).max(1), // Coerce "0.8" -> 0.8, clamp 0-1
   keyFactor: z.string(),
   tradeOff: z.string(),
-  reasoning: z.string().optional()
+  reasoning: z.string().optional().default('') // Default empty if missing
 });
 export type EntityDecision = z.infer<typeof EntityDecisionSchema>;
 
 export const SimulationInsightsSchema = z.object({
-  outcomeDistribution: z.record(z.number()),
+  outcomeDistribution: coercedNumberRecord, // Coerce string numbers in record
   keyInsight: z.string(),
   detailedAnalysis: z.string(),
   segmentPatterns: z.string(),

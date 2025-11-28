@@ -1,6 +1,6 @@
 {
   "name": "@agentfield/sdk",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "AgentField TypeScript SDK",
   "type": "module",
   "main": "dist/index.js",
@@ -25,9 +25,9 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^0.0.24",
-    "@ai-sdk/openai": "^0.0.24",
-    "ai": "^3.0.0",
+    "@ai-sdk/anthropic": "^2.0.50",
+    "@ai-sdk/openai": "^2.0.74",
+    "ai": "^5.0.104",
     "axios": "^1.6.2",
     "dotenv": "^16.4.5",
     "express": "^4.18.2",
@@ -45,15 +45,21 @@
     "vitest": "^1.0.0"
   },
   "repository": {
-      "type": "git",
-      "url": "https://github.com/Agent-Field/agentfield.git",
-      "directory": "sdk/typescript"
-    },
-    "homepage": "https://github.com/Agent-Field/agentfield/tree/main/sdk/typescript",
-    "bugs": {
-      "url": "https://github.com/Agent-Field/agentfield/issues"
-    },
-    "license": "MIT",
-    "keywords": ["agentfield", "ai-agents", "llm", "multi-agent", "orchestration"],
-    "author": "AgentField Team"
+    "type": "git",
+    "url": "https://github.com/Agent-Field/agentfield.git",
+    "directory": "sdk/typescript"
+  },
+  "homepage": "https://github.com/Agent-Field/agentfield/tree/main/sdk/typescript",
+  "bugs": {
+    "url": "https://github.com/Agent-Field/agentfield/issues"
+  },
+  "license": "MIT",
+  "keywords": [
+    "agentfield",
+    "ai-agents",
+    "llm",
+    "multi-agent",
+    "orchestration"
+  ],
+  "author": "AgentField Team"
 }

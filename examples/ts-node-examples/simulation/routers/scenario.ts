@@ -60,7 +60,8 @@ Be thorough in your analysis - this will guide the entire simulation.
 
 RESPONSE FORMAT: Return ONLY valid JSON matching the schema. No prose, no markdown.`;
 
-    const rawAnalysis = await ctx.ai(prompt, { schema: ScenarioAnalysisSchema });
+    // Lower temperature for more consistent structured output
+    const rawAnalysis = await ctx.ai(prompt, { schema: ScenarioAnalysisSchema, temperature: 0.4 });
     const analysis =
       parseWithSchema(rawAnalysis, ScenarioAnalysisSchema, 'Scenario analysis', fallbackAnalysis, true) ??
       fallbackAnalysis();
@@ -152,23 +153,9 @@ Example:
   "samplingStrategy": "How to sample realistic values..."
 }`;
 
-    const fallbackFactorGraph = (): FactorGraph => ({
-      attributes: {
-        age: 'Age of the entity',
-        income: 'Income level',
-        loyalty: 'Loyalty or tenure with provider',
-        satisfaction: 'Current satisfaction level',
-        price_sensitivity: 'Sensitivity to price changes'
-      },
-      attributeGraph: 'Fallback factor graph used due to invalid model response.',
-      samplingStrategy: 'Sample realistic values and maintain correlations where reasonable.'
-    });
-
-    const rawFactorGraph = await ctx.ai(prompt, { schema: FactorGraphSchema });
-    const parsed =
-      parseWithSchema(rawFactorGraph, FactorGraphSchema, 'Factor graph', fallbackFactorGraph, true) ??
-      fallbackFactorGraph();
-    return parsed;
+    // Lower temperature for more consistent structured output
+    const factorGraph = await ctx.ai<FactorGraph>(prompt, { schema: FactorGraphSchema, temperature: 0.4 });
+    return factorGraph;
   },
   {
     inputSchema: z.object({

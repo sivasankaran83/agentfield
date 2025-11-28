@@ -197,7 +197,8 @@ Be specific and reference the summarized data provided.
 
 RESPONSE FORMAT: Return ONLY valid JSON matching the schema. No prose, no markdown.`;
 
-    const raw = await ctx.ai(prompt, { schema: SimulationInsightsSchema });
+    // Lower temperature for more consistent structured output
+    const raw = await ctx.ai(prompt, { schema: SimulationInsightsSchema, temperature: 0.4 });
     const fallback = () => ({
       outcomeDistribution,
       keyInsight: 'Fallback insight',

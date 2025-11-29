@@ -148,31 +148,69 @@ const result = await fetch("http://localhost:8080/api/v1/execute/researcher.summ
 ## Quick Start
 
 ### 1. Install
+
 ```bash
 curl -fsSL https://agentfield.ai/install.sh | bash
 ```
 
-### 2. Create an Agent
+### 2. Create Your Agent
+
 ```bash
-af init my-agent && cd my-agent
+af init my-agent --defaults
+cd my-agent && pip install -r requirements.txt
 ```
 
-### 3. Run
-```bash
-af run
-```
+### 3. Start (Two Terminals Required)
 
-### 4. Call It
+AgentField uses a **control plane + agent node** architecture. You'll need two terminal windows:
+
+**Terminal 1 – Start the Control Plane:**
 ```bash
-curl -X POST http://localhost:8080/api/v1/execute/my-agent.hello \
+af server
+```
+> Opens the dashboard at http://localhost:8080
+
+**Terminal 2 – Start Your Agent:**
+```bash
+python main.py
+```
+> Agent auto-registers with the control plane
+
+### 4. Test It
+
+```bash
+curl -X POST http://localhost:8080/api/v1/execute/my-agent.demo_echo \
   -H "Content-Type: application/json" \
-  -d '{"input": {"name": "World"}}'
+  -d '{"input": {"message": "Hello!"}}'
 ```
+
+<details>
+<summary><strong>Other Languages / Options</strong></summary>
+
+**Go:**
+```bash
+af init my-agent --defaults --language go
+cd my-agent && go mod download
+go run .
+```
+
+**TypeScript:**
+```bash
+af init my-agent --defaults --language typescript
+cd my-agent && npm install
+npm run dev
+```
+
+**Interactive mode** (choose language, set author info):
+```bash
+af init my-agent  # No --defaults flag
+```
+</details>
 
 <details>
 <summary><strong>Docker / Troubleshooting</strong></summary>
 
-If you are running AgentField in Docker, you may need to set a callback URL so the Control Plane can reach your agent:
+If running AgentField in Docker, set a callback URL so the Control Plane can reach your agent:
 
 ```bash
 export AGENT_CALLBACK_URL="http://host.docker.internal:8001"

@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 <!-- changelog:entries -->
 
+## [0.1.13] - 2025-12-02
+
+
+### Other
+
+- Release workflow fix (fde0309)
+
+- Update README.md (c3cfca4)
+
 ## [0.1.12] - 2025-12-02
 
 

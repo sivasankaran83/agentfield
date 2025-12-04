@@ -26,20 +26,30 @@ export interface AgentConfig {
 }
 
 export interface AIConfig {
-  provider?: 'openai' | 'anthropic' | 'openrouter' | 'ollama';
+  provider?:
+    | 'openai'
+    | 'anthropic'
+    | 'google'
+    | 'mistral'
+    | 'groq'
+    | 'xai'
+    | 'deepseek'
+    | 'cohere'
+    | 'openrouter'
+    | 'ollama';
   model?: string;
   embeddingModel?: string;
   apiKey?: string;
   baseUrl?: string;
   temperature?: number;
   maxTokens?: number;
-   enableRateLimitRetry?: boolean;
-   rateLimitMaxRetries?: number;
-   rateLimitBaseDelay?: number;
-   rateLimitMaxDelay?: number;
-   rateLimitJitterFactor?: number;
-   rateLimitCircuitBreakerThreshold?: number;
-   rateLimitCircuitBreakerTimeout?: number;
+  enableRateLimitRetry?: boolean;
+  rateLimitMaxRetries?: number;
+  rateLimitBaseDelay?: number;
+  rateLimitMaxDelay?: number;
+  rateLimitJitterFactor?: number;
+  rateLimitCircuitBreakerThreshold?: number;
+  rateLimitCircuitBreakerTimeout?: number;
 }
 
 export interface MemoryConfig {

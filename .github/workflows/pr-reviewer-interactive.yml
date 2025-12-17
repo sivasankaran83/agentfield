@@ -1,4 +1,4 @@
-name: PR Reviewer Agent (Interactive)
+name: PR Reviewer Agent
 
 on:
   pull_request:

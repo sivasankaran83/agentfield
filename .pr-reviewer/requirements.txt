@@ -1,210 +1,80 @@
 # ================================================================
-# PR Reviewer Agent - Complete Dependencies
-# Multi-Agent System with Human Oversight & Architectural Analysis
+# PR Reviewer Agent - GitHub Actions Requirements
+# Optimized for CI/CD pipeline execution
 # ================================================================
 
 # ----------------------------------------------------------------
-# Core Framework - AgentField Multi-Agent System
+# Core Framework
 # ----------------------------------------------------------------
-agentfield>=0.1.0                # AgentField control plane SDK
+agentfield>=0.1.0                # AgentField SDK
 
 # ----------------------------------------------------------------
-# AI/LLM - Claude Sonnet 4 Integration
+# AI/LLM
 # ----------------------------------------------------------------
-anthropic>=0.21.0                # Anthropic Claude API client
-httpx>=0.27.0                    # HTTP client (required by anthropic)
+anthropic>=0.21.0                # Claude API
+httpx>=0.27.0                    # HTTP client
 
 # ----------------------------------------------------------------
-# Python Testing Tools
+# GitHub Integration
 # ----------------------------------------------------------------
-pytest>=8.0.0                    # Testing framework
-pytest-cov>=4.1.0                # Coverage plugin
-pytest-json-report>=1.5.0        # JSON test reports
-pytest-html>=4.0.0               # HTML test reports
-pytest-asyncio>=0.23.0           # Async test support
-coverage>=7.4.0                  # Code coverage
+PyGithub>=2.1.1                  # GitHub API
+GitPython>=3.1.40                # Git operations
 
 # ----------------------------------------------------------------
-# Python Linting & Code Quality
+# Python Language Tools
 # ----------------------------------------------------------------
-pylint>=3.0.0                    # Comprehensive linter
-ruff>=0.3.0                      # Fast Python linter (Rust-based)
-flake8>=7.0.0                    # Style guide enforcement
-flake8-docstrings>=1.7.0         # Docstring linting
-flake8-bugbear>=24.0.0           # Bug detection
-mypy>=1.8.0                      # Static type checker
-pydocstyle>=6.3.0                # Docstring style checker
-
-# ----------------------------------------------------------------
-# Python Formatting
-# ----------------------------------------------------------------
-black>=24.0.0                    # Code formatter
+pytest>=8.0.0                    # Testing
+pytest-json-report>=1.5.0        # JSON reports
+pytest-cov>=4.1.0                # Coverage
+pylint>=3.0.0                    # Linting
+ruff>=0.3.0                      # Fast linter
+mypy>=1.8.0                      # Type checking
+black>=24.0.0                    # Formatter
 isort>=5.13.0                    # Import sorter
-autopep8>=2.0.4                  # PEP 8 auto-formatter
+bandit>=1.7.7                    # Security scanner
+radon>=6.0.1                     # Complexity
 
 # ----------------------------------------------------------------
-# Python Security Scanning
-# ----------------------------------------------------------------
-bandit>=1.7.7                    # Security issue scanner
-safety>=3.0.0                    # Dependency vulnerability checker
-pip-audit>=2.7.0                 # Alternative security scanner
-
-# ----------------------------------------------------------------
-# Python Code Complexity & Quality Metrics
-# ----------------------------------------------------------------
-radon>=6.0.1                     # Cyclomatic complexity
-mccabe>=0.7.0                    # Complexity checker
-vulture>=2.11                    # Dead code finder
-pylint-complexity>=0.2.0         # Complexity plugin
-
-# ----------------------------------------------------------------
-# Git Integration
-# ----------------------------------------------------------------
-GitPython>=3.1.40                # Git repository interaction
-PyGithub>=2.1.1                  # GitHub API client
-
-# ----------------------------------------------------------------
-# Configuration Management
+# Configuration & Data
 # ----------------------------------------------------------------
 pyyaml>=6.0.1                    # YAML parser
 python-dotenv>=1.0.0             # Environment variables
-toml>=0.10.2                     # TOML parser
-
-# ----------------------------------------------------------------
-# HTTP & API Clients
-# ----------------------------------------------------------------
-requests>=2.31.0                 # HTTP library
-urllib3>=2.2.0                   # HTTP client
-aiohttp>=3.9.0                   # Async HTTP client
-httpcore>=1.0.0                  # Low-level HTTP
-
-# ----------------------------------------------------------------
-# Data Processing & Validation
-# ----------------------------------------------------------------
-jsonschema>=4.21.0               # JSON schema validation
+jsonschema>=4.21.0               # JSON validation
 pydantic>=2.6.0                  # Data validation
-marshmallow>=3.20.0              # Object serialization
 
 # ----------------------------------------------------------------
-# CLI & Terminal UI
+# CLI & Output
 # ----------------------------------------------------------------
+rich>=13.7.0                     # Terminal output
 click>=8.1.7                     # CLI framework
-rich>=13.7.0                     # Rich terminal output
-colorama>=0.4.6                  # Cross-platform colored terminal
-tabulate>=0.9.0                  # Pretty-print tables
-inquirer>=3.2.0                  # Interactive CLI prompts
 
 # ----------------------------------------------------------------
-# Async & Concurrency
+# Async & HTTP
 # ----------------------------------------------------------------
-asyncio>=3.4.3                   # Async I/O (stdlib backport)
 aiofiles>=23.2.1                 # Async file I/O
-aiodns>=3.1.0                    # Async DNS resolution
+aiohttp>=3.9.0                   # Async HTTP
+requests>=2.31.0                 # HTTP library
 
 # ----------------------------------------------------------------
-# Date & Time
+# Utilities
 # ----------------------------------------------------------------
 python-dateutil>=2.8.2           # Date parsing
-pytz>=2024.1                     # Timezone definitions
-
-# ----------------------------------------------------------------
-# Logging & Monitoring
-# ----------------------------------------------------------------
 structlog>=24.1.0                # Structured logging
-python-json-logger>=2.0.7        # JSON log formatter
-loguru>=0.7.2                    # Better logging
-
-# ----------------------------------------------------------------
-# Testing & Mocking (Development)
-# ----------------------------------------------------------------
-pytest-mock>=3.12.0              # Pytest mock plugin
-responses>=0.25.0                # HTTP mocking
-faker>=24.0.0                    # Fake data generator
-factory-boy>=3.3.0               # Test fixtures
-
-# ----------------------------------------------------------------
-# Documentation Generation
-# ----------------------------------------------------------------
-markdown>=3.5.2                  # Markdown processing
-pygments>=2.17.0                 # Syntax highlighting
-jinja2>=3.1.3                    # Template engine
-
-# ----------------------------------------------------------------
-# Optional: Language-Specific Tools (if not system-installed)
-# ----------------------------------------------------------------
-# Go tools: Install via `go install`
-# - golangci-lint: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-# - gosec: go install github.com/securego/gosec/v2/cmd/gosec@latest
-# - gocyclo: go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
-
-# TypeScript/JavaScript tools: Install via npm/yarn
-# - jest: npm install -g jest
-# - eslint: npm install -g eslint
-# - prettier: npm install -g prettier
-# - typescript: npm install -g typescript
-
-# Rust tools: Install via cargo
-# - cargo-audit: cargo install cargo-audit
-# - clippy: rustup component add clippy
-# - rustfmt: rustup component add rustfmt
-
-# ----------------------------------------------------------------
-# Optional: Enhanced Features
-# ----------------------------------------------------------------
-ujson>=5.9.0                     # Fast JSON parser (optional)
-orjson>=3.9.0                    # Even faster JSON (optional)
-sh>=2.0.6                        # Subprocess wrapper (optional)
-
-# ----------------------------------------------------------------
-# Development & Pre-commit Hooks
-# ----------------------------------------------------------------
-pre-commit>=3.6.0                # Git hook framework
-commitizen>=3.14.0               # Conventional commits
-detect-secrets>=1.4.0            # Prevent secret commits
-
-# ----------------------------------------------------------------
-# Type Stubs (for mypy)
-# ----------------------------------------------------------------
-types-requests>=2.31.0           # Type stubs for requests
-types-PyYAML>=6.0.12             # Type stubs for PyYAML
-types-python-dateutil>=2.8.19    # Type stubs for dateutil
-
-# ----------------------------------------------------------------
-# Platform-Specific (Windows compatibility)
-# ----------------------------------------------------------------
-pywin32>=306; platform_system == "Windows"  # Windows API
-colorama>=0.4.6; platform_system == "Windows"  # Windows colored output
 
 # ================================================================
-# INSTALLATION INSTRUCTIONS
+# INSTALLATION IN GITHUB ACTIONS
 # ================================================================
-#
-# 1. Create virtual environment:
-#    python -m venv venv
-#    source venv/bin/activate  # On Windows: venv\Scripts\activate
-#
-# 2. Install dependencies:
-#    pip install -r requirements.txt
-#
-# 3. Install AgentField:
-#    git clone https://github.com/Agent-Field/agentfield.git
-#    cd agentfield
-#    make install
-#
-# 4. Set environment variables:
-#    export ANTHROPIC_API_KEY="your-api-key"
-#    export AGENTFIELD_SERVER="http://localhost:8080"
-#
-# 5. Install language-specific tools:
-#    - Go: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-#    - Node: npm install -g jest eslint prettier typescript
-#    - Rust: cargo install cargo-audit
-#
+# - name: Install Dependencies
+#   run: |
+#     python -m pip install --upgrade pip
+#     pip install -r .pr-reviewer/requirements.txt
 # ================================================================
-# VERSION NOTES
+
 # ================================================================
-# Minimum Python version: 3.10+
-# Recommended Python version: 3.11+
-# Tested on: Python 3.10, 3.11, 3.12
-# OS: Linux, macOS, Windows 10+
+# NOTES
+# ================================================================
+# - Optimized for GitHub Actions runners (Ubuntu)
+# - No development/testing-only packages
+# - No Windows-specific packages
+# - Fast installation (<2 minutes)
 # ================================================================

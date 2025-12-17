@@ -1,0 +1,319 @@
+# PR Reviewer Agent Configuration
+
+# Analysis Configuration
+analysis:
+  # Enable/disable analysis types
+  run_tests: true
+  run_code_analysis: true
+  run_architecture_analysis: true
+  run_security_analysis: true
+  
+  # File patterns to analyze
+  include_patterns:
+    - "**/*.py"
+    - "**/*.js"
+    - "**/*.ts"
+    - "**/*.java"
+  
+  exclude_patterns:
+    - "**/node_modules/**"
+    - "**/venv/**"
+    - "**/.git/**"
+    - "**/build/**"
+    - "**/dist/**"
+
+# Test Configuration
+testing:
+  # Test framework (pytest, unittest, jest, etc.)
+  framework: pytest
+  
+  # Test discovery patterns
+  test_patterns:
+    - "test_*.py"
+    - "*_test.py"
+    - "tests/**/*.py"
+  
+  # Coverage requirements
+  coverage_threshold: 80
+  coverage_fail_under: 70
+  
+  # Test execution
+  timeout: 300  # seconds
+  parallel: true
+  max_workers: 4
+  
+  # Pytest specific
+  pytest_args:
+    - "--verbose"
+    - "--tb=short"
+    - "--json-report"
+    - "--json-report-file=test_results.json"
+
+# Code Analysis Tools
+code_analysis:
+  # Tools to run
+  tools:
+    - pylint
+    - flake8
+    - mypy
+    - black
+    - isort
+  
+  # Severity threshold (ignore issues below this level)
+  severity_threshold: medium  # low, medium, high, critical
+  
+  # Tool-specific configurations
+  pylint:
+    max_line_length: 100
+    disable:
+      - C0111  # missing-docstring
+      - R0903  # too-few-public-methods
+  
+  flake8:
+    max_line_length: 100
+    ignore:
+      - E203
+      - W503
+  
+  mypy:
+    strict: false
+    ignore_missing_imports: true
+
+# Architecture Analysis
+architecture:
+  # SOLID principles checking
+  check_solid: true
+  
+  # Anti-pattern detection
+  detect_god_objects: true
+  detect_spaghetti_code: true
+  detect_dead_code: true
+  detect_duplicate_code: true
+  
+  # Complexity thresholds
+  max_cyclomatic_complexity: 10
+  max_cognitive_complexity: 15
+  
+  # Class/Method thresholds
+  max_class_methods: 20
+  max_class_fields: 15
+  max_class_dependencies: 10
+  max_method_lines: 50
+  max_method_parameters: 5
+  
+  # Inheritance depth
+  max_inheritance_depth: 4
+
+# Security Analysis
+security:
+  # Security tools
+  tools:
+    - bandit
+    - safety
+  
+  # Severity filtering
+  ignore_low_severity: false
+  ignore_informational: true
+  
+  # Bandit configuration
+  bandit:
+    confidence_level: medium  # low, medium, high
+    severity_level: low  # low, medium, high
+    exclude_dirs:
+      - tests
+      - test
+
+# Human-in-Loop Settings
+human_loop:
+  # Enable/disable human checkpoints
+  require_plan_approval: true
+  require_implementation_verification: true
+  require_final_approval: true
+  
+  # Iteration limits
+  max_replan_iterations: 3
+  max_fix_iterations: 5
+  
+  # Automatic approval settings (use with caution!)
+  auto_approve:
+    enabled: false
+    conditions:
+      max_failed_tests: 0
+      max_code_issues: 5
+      no_security_issues: true
+      no_architectural_issues: true
+
+# Remediation Settings
+remediation:
+  # Auto-fix capabilities
+  auto_fix:
+    enabled: true
+    # Types of fixes to apply automatically
+    formatting: true
+    imports: true
+    simple_refactoring: true
+    test_fixes: false  # Keep false for safety
+  
+  # Refactoring settings
+  refactoring:
+    split_god_objects: true
+    extract_methods: true
+    min_method_extraction_lines: 10
+    preserve_existing_structure: true
+
+# Git Configuration
+git:
+  # Target branch (usually main or master)
+  target_branch: main
+  
+  # Commit settings
+  commit_message_prefix: "[PR-Reviewer-Agent]"
+  commit_message_suffix: ""
+  
+  # Branch naming
+  auto_fix_branch_prefix: "auto-fix/"
+  
+  # Merge settings
+  merge_method: merge  # merge, squash, rebase
+  delete_branch_after_merge: false
+
+# Notification Settings
+notifications:
+  # Slack integration
+  slack:
+    enabled: false
+    webhook_url: "${SLACK_WEBHOOK_URL}"
+    channel: "#pr-reviews"
+  
+  # Email notifications
+  email:
+    enabled: false
+    smtp_server: "smtp.gmail.com"
+    smtp_port: 587
+    from_address: "pr-reviewer@example.com"
+    to_addresses:
+      - "team@example.com"
+
+# Reporting Settings
+reporting:
+  # Report formats
+  formats:
+    - json
+    - html
+    - markdown
+  
+  # Report locations
+  output_dir: "./reports"
+  
+  # Report retention
+  keep_reports: 30  # days
+  
+  # Include in reports
+  include_diffs: true
+  include_test_output: true
+  include_full_analysis: true
+
+# Performance Settings
+performance:
+  # Caching
+  cache_enabled: true
+  cache_dir: "./.pr-reviewer-cache"
+  
+  # Parallel processing
+  parallel_analysis: true
+  max_parallel_tasks: 4
+  
+  # Timeouts
+  total_timeout: 1800  # 30 minutes
+  analysis_timeout: 600
+  test_timeout: 300
+
+# Logging Configuration
+logging:
+  level: INFO  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "pr_reviewer.log"
+  console: true
+  
+  # Log rotation
+  rotate:
+    enabled: true
+    max_bytes: 10485760  # 10MB
+    backup_count: 5
+
+# Feature Flags
+features:
+  # Experimental features
+  ai_assisted_fixes: false
+  predictive_analysis: false
+  
+  # Advanced features
+  cross_pr_learning: false
+  pattern_detection: true
+  trend_analysis: false
+
+# Integration Settings
+integrations:
+  # GitHub
+  github:
+    token: "${GITHUB_TOKEN}"
+    api_url: "https://api.github.com"
+  
+  # GitLab
+  gitlab:
+    enabled: false
+    token: "${GITLAB_TOKEN}"
+    api_url: "https://gitlab.com/api/v4"
+  
+  # Jira
+  jira:
+    enabled: false
+    url: "${JIRA_URL}"
+    username: "${JIRA_USERNAME}"
+    api_token: "${JIRA_API_TOKEN}"
+
+# Custom Rules
+custom_rules:
+  # Add your custom validation rules
+  rules:
+    - name: "No TODO comments in production"
+      pattern: "TODO|FIXME|HACK"
+      severity: medium
+      enabled: true
+    
+    - name: "No print statements"
+      pattern: "print\\("
+      severity: low
+      enabled: false
+      file_types: ["py"]
+    
+    - name: "Require docstrings for public methods"
+      type: "ast_check"
+      severity: medium
+      enabled: true
+
+# Environment-specific Settings
+environments:
+  development:
+    analysis:
+      run_tests: true
+    human_loop:
+      require_plan_approval: false
+  
+  staging:
+    analysis:
+      run_tests: true
+      run_security_analysis: true
+    human_loop:
+      require_plan_approval: true
+  
+  production:
+    analysis:
+      run_tests: true
+      run_code_analysis: true
+      run_architecture_analysis: true
+      run_security_analysis: true
+    human_loop:
+      require_plan_approval: true
+      require_implementation_verification: true
+      require_final_approval: true

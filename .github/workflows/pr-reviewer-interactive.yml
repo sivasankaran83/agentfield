@@ -1,0 +1,195 @@
+name: PR Reviewer Agent (Interactive)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  pr-review:
+    if: |
+      (github.event_name == 'pull_request') ||
+      (github.event_name == 'issue_comment' && 
+       contains(github.event.comment.body, '@pr-reviewer') &&
+       github.event.issue.pull_request)
+    
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref || github.head_ref }}
+      
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: 🔧 Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      
+      - name: 📦 Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git curl jq
+      
+      - name: 📚 Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          
+          # Install PR Reviewer dependencies
+          if [ -f .pr-reviewer/requirements.txt ]; then
+            pip install -r .pr-reviewer/requirements.txt
+          fi
+      
+      - name: 🏗️ Setup AgentField
+        run: |
+          # Check if AgentField is already in the repo
+          if [ -d .pr-reviewer/agentfield ]; then
+            echo "✅ AgentField found in repository"
+            cd .pr-reviewer/agentfield
+            make install
+          else
+            echo "📥 AgentField not found, cloning..."
+            cd .pr-reviewer
+            git clone https://github.com/Agent-Field/agentfield.git
+            cd agentfield
+            make install
+          fi
+      
+      - name: 📁 Create Working Directories
+        run: |
+          mkdir -p .pr-reviewer/logs
+          mkdir -p .pr-reviewer/results
+      
+      - name: 🚀 Start AgentField Control Plane
+        run: |
+          cd .pr-reviewer/agentfield/control-plane
+          nohup go run ./cmd/af dev > ../../logs/agentfield.log 2>&1 &
+          
+          echo "Waiting for AgentField to start..."
+          for i in {1..30}; do
+            if curl -s http://localhost:8080/health > /dev/null 2>&1; then
+              echo "✅ AgentField is ready!"
+              break
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
+          
+          if ! curl -s http://localhost:8080/health > /dev/null 2>&1; then
+            echo "❌ AgentField failed to start"
+            cat ../../logs/agentfield.log
+            exit 1
+          fi
+        env:
+          AGENTFIELD_SERVER: http://localhost:8080
+      
+      - name: 🤖 Start PR Reviewer Agents
+        run: |
+          cd .pr-reviewer
+          
+          echo "Starting agents..."
+          
+          # Start each agent in background
+          python agents/summarization_agent.py > logs/summarizer.log 2>&1 &
+          sleep 2
+          
+          python agents/planner_agent.py > logs/planner.log 2>&1 &
+          sleep 2
+          
+          python agents/executor_agent.py > logs/executor.log 2>&1 &
+          sleep 2
+          
+          python agents/verifier_agent.py > logs/verifier.log 2>&1 &
+          sleep 2
+          
+          python agents/orchestrator_agent.py > logs/orchestrator.log 2>&1 &
+          sleep 5
+          
+          # Verify agents registered with AgentField
+          agent_count=$(curl -s http://localhost:8080/agents 2>/dev/null | jq '. | length' || echo "0")
+          echo "Registered agents: $agent_count"
+          
+          if [ "$agent_count" -lt "5" ]; then
+            echo "⚠️ Warning: Only $agent_count/5 agents registered"
+            echo "Continuing anyway..."
+          else
+            echo "✅ All 5 agents registered successfully!"
+          fi
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AGENTFIELD_SERVER: http://localhost:8080
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: 🔍 Parse Command
+        id: parse_command
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "action=analyze" >> $GITHUB_OUTPUT
+            echo "context=" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event.comment.body }}" == *"@pr-reviewer proceed"* ]]; then
+            echo "action=proceed" >> $GITHUB_OUTPUT
+            # Extract context after "proceed"
+            context=$(echo '${{ github.event.comment.body }}' | sed 's/.*@pr-reviewer proceed//g' | xargs)
+            echo "context=$context" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event.comment.body }}" == *"@pr-reviewer execute"* ]]; then
+            echo "action=execute" >> $GITHUB_OUTPUT
+            echo "context=" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event.comment.body }}" == *"@pr-reviewer merge"* ]]; then
+            echo "action=merge" >> $GITHUB_OUTPUT
+            echo "context=" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event.comment.body }}" == *"@pr-reviewer rollback"* ]]; then
+            echo "action=rollback" >> $GITHUB_OUTPUT
+            echo "context=" >> $GITHUB_OUTPUT
+          else
+            echo "action=none" >> $GITHUB_OUTPUT
+            echo "context=" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: 🔬 Run PR Review Workflow
+        if: steps.parse_command.outputs.action != 'none'
+        working-directory: .pr-reviewer
+        run: |
+          python scripts/github_workflow_runner.py \
+            --pr-number ${{ github.event.pull_request.number || github.event.issue.number }} \
+            --action ${{ steps.parse_command.outputs.action }} \
+            --repo ${{ github.repository }} \
+            --context "${{ steps.parse_command.outputs.context }}"
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AGENTFIELD_SERVER: http://localhost:8080
+      
+      - name: 📊 Upload Agent Logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-logs-${{ github.run_number }}
+          path: |
+            .pr-reviewer/logs/
+          retention-days: 7
+          if-no-files-found: warn
+      
+      - name: 📊 Upload Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: review-results-${{ github.run_number }}
+          path: |
+            .pr-reviewer/results/
+            .pr-reviewer/*.json
+          retention-days: 7
+          if-no-files-found: ignore

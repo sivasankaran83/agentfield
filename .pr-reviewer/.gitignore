@@ -1,0 +1,52 @@
+# General
+.DS_Store
+*.log
+*.tmp
+*.swp
+*.swo
+test-reports/
+.env
+
+# Go
+bin/
+dist/
+**/dist/
+coverage.out
+*.test
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.mypy_cache/
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+logs/
+results/
+
+# Node / Frontend
+node_modules/
+.pnpm-store/
+.yarn/
+.parcel-cache/
+*.tsbuildinfo
+**/.ui-build-hash
+
+# IDE / Tooling
+.idea/
+.vscode/
+*.code-workspace
+
+# Generated assets
+coverage/
+reports/
+*.coverage
+*.lcov
+
+# Docker
+.docker/
+
+# Typescript
+.env

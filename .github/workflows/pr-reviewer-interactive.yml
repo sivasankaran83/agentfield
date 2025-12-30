@@ -66,8 +66,8 @@ jobs:
             cd .pr-reviewer
             mkdir agentfield
             cd agentfield
-            curl -sSf https://agentfield.ai/get | sh
-            source ~/.zshrc
+            curl -sSf https://agentfield.ai/get | bash
+            source ~/.bashrc
             af server
           fi
       

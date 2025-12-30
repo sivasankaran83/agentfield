@@ -54,24 +54,15 @@ jobs:
             pip install -r .pr-reviewer/requirements.txt
           fi
       
-      - name: 🏗️ Setup AgentField
+      - name: 🏗️ Install AgentField
         run: |
-          # Check if AgentField is already in the repo
-          if [ -d .pr-reviewer/agentfield ]; then
-            echo "✅ AgentField found in repository"
-            cd .pr-reviewer/agentfield
-            make install
-          else
-            echo "📥 AgentField not found, installing..."
+            echo "📥 Installing AgentField CLI.."
             cd .pr-reviewer
-            mkdir agentfield
-            cd agentfield
             curl -sSf https://agentfield.ai/get | bash
             echo "$HOME/.agentfield/bin" >> $GITHUB_PATH
             export PATH="$HOME/.agentfield/bin:$PATH"
-            af server &
-          fi
-      
+            af server &        
+
       - name: 📁 Create Working Directories
         run: |
           mkdir -p .pr-reviewer/logs
@@ -79,7 +70,7 @@ jobs:
       
       - name: 🚀 Verifying AgentField
         run: |
-          cd .pr-reviewer/agentfield
+          cd .pr-reviewer
           af --version
           for i in {1..30}; do
             if curl -s http://localhost:8080/health > /dev/null 2>&1; then

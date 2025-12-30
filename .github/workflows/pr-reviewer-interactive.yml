@@ -92,11 +92,10 @@ jobs:
         run: |
           echo "Current workspace: ${{ github.workspace }}"
           cd ${{ github.workspace }}
-          cd ..
           echo "Parent directory: $(pwd)"
           BASE_DIR="$(pwd)/.pr-reviewer"
           if [ ! -f "$BASE_DIR/agents/final/planner_agent.py" ]; then
-            echo "Error: planner_agent.py not found at $BASE_DIR/agents/"
+            echo "Error: planner_agent.py not found at $BASE_DIR/agents/final"
             exit 1
           fi
           echo "Starting agents..."

@@ -1,4 +1,4 @@
-name: PR Reviewer Agent (Interactive)
+name: PR Reviewer Agent
 
 on:
   pull_request:
@@ -33,7 +33,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip'
+        
       
       - name: 🔧 Setup Go
         uses: actions/setup-go@v5

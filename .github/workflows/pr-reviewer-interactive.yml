@@ -78,7 +78,7 @@ jobs:
         run: |
           cd .pr-reviewer/agentfield
           source ~/.bashrc
-          af server > ../../logs/agentfield.log 2>&1 &
+          af server
           
           echo "Waiting for AgentField to start..."
           for i in {1..30}; do

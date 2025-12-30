@@ -62,11 +62,13 @@ jobs:
             cd .pr-reviewer/agentfield
             make install
           else
-            echo "📥 AgentField not found, cloning..."
+            echo "📥 AgentField not found, installing..."
             cd .pr-reviewer
             mkdir agentfield
             cd agentfield
-            curl -fsSL https://agentfield.ai/install.sh | bash
+            curl -sSf https://agentfield.ai/get | sh
+            source ~/.zshrc
+            af server
           fi
       
       - name: 📁 Create Working Directories
@@ -77,8 +79,6 @@ jobs:
       - name: 🚀 Start AgentField Control Plane
         run: |
           cd .pr-reviewer/agentfield
-          source ~/.bashrc
-          af server          
           echo "Waiting for AgentField to start..."
           for i in {1..30}; do
             if curl -s http://localhost:8080/health > /dev/null 2>&1; then

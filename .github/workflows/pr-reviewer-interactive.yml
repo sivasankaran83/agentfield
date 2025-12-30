@@ -67,8 +67,9 @@ jobs:
             mkdir agentfield
             cd agentfield
             curl -sSf https://agentfield.ai/get | bash
-            source ~/.bashrc
-            af server
+            echo "$HOME/.agentfield/bin" >> $GITHUB_PATH
+            export PATH="$HOME/.agentfield/bin:$PATH"
+            af server &
           fi
       
       - name: 📁 Create Working Directories
@@ -76,10 +77,10 @@ jobs:
           mkdir -p .pr-reviewer/logs
           mkdir -p .pr-reviewer/results
       
-      - name: 🚀 Start AgentField Control Plane
+      - name: 🚀 Verifying AgentField
         run: |
           cd .pr-reviewer/agentfield
-          echo "Waiting for AgentField to start..."
+          af --version
           for i in {1..30}; do
             if curl -s http://localhost:8080/health > /dev/null 2>&1; then
               echo "✅ AgentField is ready!"

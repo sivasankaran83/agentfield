@@ -64,9 +64,9 @@ jobs:
           else
             echo "📥 AgentField not found, cloning..."
             cd .pr-reviewer
-            git clone https://github.com/Agent-Field/agentfield.git
+            mkdir agentfield
             cd agentfield
-            make install
+            curl -fsSL https://agentfield.ai/install.sh | bash
           fi
       
       - name: 📁 Create Working Directories
@@ -76,8 +76,9 @@ jobs:
       
       - name: 🚀 Start AgentField Control Plane
         run: |
-          cd .pr-reviewer/agentfield/control-plane
-          nohup go run ./cmd/af dev > ../../logs/agentfield.log 2>&1 &
+          cd .pr-reviewer/agentfield
+          source ~/.bashrc
+          af > ../../logs/agentfield.log 2>&1 &
           
           echo "Waiting for AgentField to start..."
           for i in {1..30}; do

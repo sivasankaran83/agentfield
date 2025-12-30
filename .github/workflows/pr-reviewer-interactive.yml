@@ -70,7 +70,6 @@ jobs:
       
       - name: 🚀 Verifying AgentField
         run: |
-          cd .pr-reviewer
           af --version
           for i in {1..30}; do
             if curl -s http://localhost:8080/health > /dev/null 2>&1; then
@@ -91,7 +90,11 @@ jobs:
       
       - name: 🤖 Start PR Reviewer Agents
         run: |
-          BASE_DIR="$GITHUB_WORKSPACE/.pr-reviewer"
+          echo "Current workspace: ${{ github.workspace }}"
+          cd ${{ github.workspace }}
+          cd ..
+          echo "Parent directory: $(pwd)"
+          BASE_DIR="$(pwd)/.pr-reviewer"
           if [ ! -f "$BASE_DIR/agents/planner_agent.py" ]; then
             echo "Error: planner_agent.py not found at $BASE_DIR/agents/"
             exit 1

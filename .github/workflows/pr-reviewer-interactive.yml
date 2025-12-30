@@ -78,8 +78,7 @@ jobs:
         run: |
           cd .pr-reviewer/agentfield
           source ~/.bashrc
-          af server
-          
+          af server          
           echo "Waiting for AgentField to start..."
           for i in {1..30}; do
             if curl -s http://localhost:8080/health > /dev/null 2>&1; then

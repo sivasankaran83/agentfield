@@ -54,33 +54,23 @@ jobs:
             pip install -r .pr-reviewer/requirements.txt
           fi
       
-      - name: 🏗️ Setup AgentField
+      - name: 🏗️ Install AgentField
         run: |
-          # Check if AgentField is already in the repo
-          if [ -d .pr-reviewer/agentfield ]; then
-            echo "✅ AgentField found in repository"
-            cd .pr-reviewer/agentfield
-            make install
-          else
-            echo "📥 AgentField not found, cloning..."
+            echo "📥 Installing AgentField CLI.."
             cd .pr-reviewer
-            mkdir agentfield
-            cd agentfield
-            curl -fsSL https://agentfield.ai/install.sh | bash
-          fi
-      
+            curl -sSf https://agentfield.ai/get | bash
+            echo "$HOME/.agentfield/bin" >> $GITHUB_PATH
+            export PATH="$HOME/.agentfield/bin:$PATH"
+            af server &        
+
       - name: 📁 Create Working Directories
         run: |
           mkdir -p .pr-reviewer/logs
           mkdir -p .pr-reviewer/results
       
-      - name: 🚀 Start AgentField Control Plane
+      - name: 🚀 Verifying AgentField
         run: |
-          cd .pr-reviewer/agentfield
-          source ~/.bashrc
-          af server > ../../logs/agentfield.log 2>&1 &
-          
-          echo "Waiting for AgentField to start..."
+          af --version
           for i in {1..30}; do
             if curl -s http://localhost:8080/health > /dev/null 2>&1; then
               echo "✅ AgentField is ready!"
@@ -100,24 +90,30 @@ jobs:
       
       - name: 🤖 Start PR Reviewer Agents
         run: |
-          cd .pr-reviewer
-          
+          echo "Current workspace: ${{ github.workspace }}"
+          cd ${{ github.workspace }}
+          echo "Parent directory: $(pwd)"
+          BASE_DIR="$(pwd)/.pr-reviewer"
+          if [ ! -f "$BASE_DIR/agents/final/planner_agent.py" ]; then
+            echo "Error: planner_agent.py not found at $BASE_DIR/agents/final"
+            exit 1
+          fi
           echo "Starting agents..."
           
           # Start each agent in background
-          python agents/summarization_agent.py > logs/summarizer.log 2>&1 &
+          python "$BASE_DIR/agents/final/summarization_agent.py" > "$BASE_DIR/logs/summarizer.log" 2>&1 &
           sleep 2
           
-          python agents/planner_agent.py > logs/planner.log 2>&1 &
+          python "$BASE_DIR/agents/final/planner_agent.py" > "$BASE_DIR/logs/planner.log" 2>&1 &
           sleep 2
           
-          python agents/executor_agent.py > logs/executor.log 2>&1 &
+          python "$BASE_DIR/agents/final/executor_agent.py" > "$BASE_DIR/logs/executor.log" 2>&1 &
           sleep 2
           
-          python agents/verifier_agent.py > logs/verifier.log 2>&1 &
+          python "$BASE_DIR/agents/final/verifier_agent.py" > "$BASE_DIR/logs/verifier.log" 2>&1 &
           sleep 2
           
-          python agents/orchestrator_agent.py > logs/orchestrator.log 2>&1 &
+          python "$BASE_DIR/agents/final/orchestrator_agent.py" > "$BASE_DIR/logs/orchestrator.log" 2>&1 &
           sleep 5
           
           # Verify agents registered with AgentField

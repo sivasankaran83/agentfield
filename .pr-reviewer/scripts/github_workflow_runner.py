@@ -39,7 +39,7 @@ AGENTFIELD_SERVER = os.getenv("AGENTFIELD_SERVER", "http://localhost:8080")
 # Format: /api/v1/execute/[node_id].[reasoner_function_name]
 AGENT_ENDPOINTS = {
     "summarizer": {
-        "analyze_pr": f"{AGENTFIELD_SERVER}/api/v1/execute/pr-reviewer-summarizer.analyze_pr_comprehensive"
+        "analyze_pr": f"{AGENTFIELD_SERVER}/api/v1/execute/pr-reviewer-summarizer.analyze_pr"
     },
     "planner": {
         "create_plan": f"{AGENTFIELD_SERVER}/api/v1/execute/pr-reviewer-planner.create_remediation_plan"
@@ -48,7 +48,7 @@ AGENT_ENDPOINTS = {
         "execute_fixes": f"{AGENTFIELD_SERVER}/api/v1/execute/pr-reviewer-executor.execute_remediation_plan"
     },
     "verifier": {
-        "verify_changes": f"{AGENTFIELD_SERVER}/api/v1/execute/pr-reviewer-verifier.verify_fixes_comprehensive"
+        "verify_changes": f"{AGENTFIELD_SERVER}/api/v1/execute/pr-reviewer-verifier.verify_changes"
     }
 }
 
@@ -77,12 +77,19 @@ async def call_agent_reasoner(
     
     console.print(f"[blue]📞 Calling {agent}.{reasoner}[/blue]")
     console.print(f"[dim]   Endpoint: {endpoint}[/dim]")
-    
+
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
+            # AgentField API expects the input data wrapped in an "Input" field
+            request_body = {
+                "Input": input_data
+            }
+
+            console.print(f"[dim]   Request body keys: {list(request_body.keys())}[/dim]")
+
             response = await client.post(
                 endpoint,
-                json=input_data,
+                json=request_body,
                 headers={
                     "Content-Type": "application/json",
                     "Accept": "application/json"
@@ -695,8 +702,10 @@ async def main():
         console.print(f"[red]❌ AgentField unavailable at {AGENTFIELD_SERVER}[/red]")
         console.print("[yellow]Tip: Ensure AgentField server is running and accessible[/yellow]")
         sys.exit(1)
-    
-    g = Github(github_token)
+
+    from github import Auth
+    auth = Auth.Token(github_token)
+    g = Github(auth=auth)
     repo = g.get_repo(args.repo)
     pr = repo.get_pull(args.pr_number)
     

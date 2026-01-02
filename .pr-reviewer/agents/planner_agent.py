@@ -4,7 +4,7 @@ Creates remediation plans based on analysis results with human oversight
 """
 
 from agentfield import Agent
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 import os
 import json
 
@@ -125,7 +125,7 @@ def calculate_priority(issue: Dict) -> str:
 
 
 @app.skill()
-def estimate_effort(issue: Dict) -> Dict[str, any]:
+def estimate_effort(issue: Dict) -> Dict[str, Any]:
     """
     Estimate effort and complexity to fix an issue
     
@@ -236,7 +236,8 @@ async def create_remediation_plan(
         "focus_areas": ["priority 1", "priority 2", "priority 3"]
     }}
     """
-    
+    # Pass pydantic schema
+    # OpenRouter
     issue_strategies = await app.ai(issue_analysis_prompt)
     
     # Step 3: Create fix items for each issue

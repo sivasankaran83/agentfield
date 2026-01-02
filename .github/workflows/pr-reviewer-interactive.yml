@@ -113,7 +113,7 @@ jobs:
           python "$BASE_DIR/agents/verifier_agent.py" > "$BASE_DIR/logs/verifier.log" 2>&1 &
           sleep 2
           
-          python "$BASE_DIR/agents/orchestrator_agent.py" > "$BASE_DIR/logs/orchestrator.log" 2>&1 &
+          python "$BASE_DIR/agents/generator_agent.py" > "$BASE_DIR/logs/generator.log" 2>&1 &
           sleep 5
           
           # Verify agents registered with AgentField

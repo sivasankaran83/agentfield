@@ -57,34 +57,43 @@ jobs:
       - name: 🏗️ Install AgentField
         run: |
             echo "📥 Installing AgentField CLI.."
-            cd .pr-reviewer
             curl -sSf https://agentfield.ai/get | bash
             echo "$HOME/.agentfield/bin" >> $GITHUB_PATH
-            export PATH="$HOME/.agentfield/bin:$PATH"
-            af server &        
 
       - name: 📁 Create Working Directories
         run: |
           mkdir -p .pr-reviewer/logs
           mkdir -p .pr-reviewer/results
-      
-      - name: 🚀 Verifying AgentField
+
+      - name: 🚀 Start AgentField Server
         run: |
+          export PATH="$HOME/.agentfield/bin:$PATH"
           af --version
+
+          # Start server in background with output redirect
+          nohup af server > .pr-reviewer/logs/agentfield-server.log 2>&1 &
+          SERVER_PID=$!
+          echo "AgentField server started with PID: $SERVER_PID"
+          echo $SERVER_PID > .pr-reviewer/agentfield.pid
+
+          # Wait for server to be healthy
+          echo "Waiting for AgentField to be ready..."
           for i in {1..30}; do
             if curl -s http://localhost:8080/health > /dev/null 2>&1; then
               echo "✅ AgentField is ready!"
-              break
+              exit 0
             fi
-            echo "Waiting... ($i/30)"
+            echo "Attempt $i/30: Server not ready yet..."
             sleep 2
           done
-          
-          if ! curl -s http://localhost:8080/health > /dev/null 2>&1; then
-            echo "❌ AgentField failed to start"
-            cat ../../logs/agentfield.log
-            exit 1
+
+          # Server failed to start
+          echo "❌ AgentField failed to start within 60 seconds"
+          if [ -f .pr-reviewer/logs/agentfield-server.log ]; then
+            echo "=== Server logs ==="
+            cat .pr-reviewer/logs/agentfield-server.log
           fi
+          exit 1
         env:
           AGENTFIELD_SERVER: http://localhost:8080
       
@@ -94,39 +103,85 @@ jobs:
           cd ${{ github.workspace }}
           echo "Parent directory: $(pwd)"
           BASE_DIR="$(pwd)/.pr-reviewer"
+
+          # Verify agent files exist
           if [ ! -f "$BASE_DIR/agents/planner_agent.py" ]; then
-            echo "Error: planner_agent.py not found at $BASE_DIR/agents/"
+            echo "❌ Error: planner_agent.py not found at $BASE_DIR/agents/"
             exit 1
           fi
+
           echo "Starting agents..."
 
           # Set PYTHONPATH to include .pr-reviewer directory for module imports
           export PYTHONPATH="$BASE_DIR:$PYTHONPATH"
+          export PATH="$HOME/.agentfield/bin:$PATH"
           echo "PYTHONPATH set to: $PYTHONPATH"
 
+          # Verify AgentField is still healthy
+          if ! curl -s http://localhost:8080/health > /dev/null 2>&1; then
+            echo "❌ AgentField server is not healthy before starting agents"
+            if [ -f "$BASE_DIR/logs/agentfield-server.log" ]; then
+              echo "=== AgentField Server Logs ==="
+              tail -50 "$BASE_DIR/logs/agentfield-server.log"
+            fi
+            exit 1
+          fi
+
           # Start each agent in background
+          echo "Starting summarization_agent..."
           python "$BASE_DIR/agents/summarization_agent.py" > "$BASE_DIR/logs/summarizer.log" 2>&1 &
-          sleep 2
+          SUMMARIZER_PID=$!
+          echo "  PID: $SUMMARIZER_PID"
+          sleep 3
 
+          echo "Starting planner_agent..."
           python "$BASE_DIR/agents/planner_agent.py" > "$BASE_DIR/logs/planner.log" 2>&1 &
-          sleep 2
+          PLANNER_PID=$!
+          echo "  PID: $PLANNER_PID"
+          sleep 3
 
+          echo "Starting executor_agent..."
           python "$BASE_DIR/agents/executor_agent.py" > "$BASE_DIR/logs/executor.log" 2>&1 &
-          sleep 2
+          EXECUTOR_PID=$!
+          echo "  PID: $EXECUTOR_PID"
+          sleep 3
 
+          echo "Starting verifier_agent..."
           python "$BASE_DIR/agents/verifier_agent.py" > "$BASE_DIR/logs/verifier.log" 2>&1 &
-          sleep 2
+          VERIFIER_PID=$!
+          echo "  PID: $VERIFIER_PID"
+          sleep 3
 
+          echo "Starting generator_agent..."
           python "$BASE_DIR/agents/generator_agent.py" > "$BASE_DIR/logs/generator.log" 2>&1 &
+          GENERATOR_PID=$!
+          echo "  PID: $GENERATOR_PID"
           sleep 5
 
+          # Check if any agents failed immediately
+          echo "Checking agent processes..."
+          for pid in $SUMMARIZER_PID $PLANNER_PID $EXECUTOR_PID $VERIFIER_PID $GENERATOR_PID; do
+            if ! ps -p $pid > /dev/null 2>&1; then
+              echo "⚠️ Warning: Process $pid is not running"
+            fi
+          done
+
           # Verify agents registered with AgentField
-          agent_count=$(curl -s http://localhost:8080/agents 2>/dev/null | jq '. | length' || echo "0")
-          echo "Registered agents: $agent_count"
+          echo "Checking agent registration..."
+          agent_count=$(curl -s http://localhost:8080/api/v1/agents 2>/dev/null | jq '. | length' || echo "0")
+          echo "Registered agents: $agent_count/5"
 
           if [ "$agent_count" -lt "5" ]; then
             echo "⚠️ Warning: Only $agent_count/5 agents registered"
-            echo "Continuing anyway..."
+            echo ""
+            echo "=== Agent Log Previews ==="
+            for log in "$BASE_DIR/logs"/{summarizer,planner,executor,verifier,generator}.log; do
+              if [ -f "$log" ]; then
+                echo "--- $(basename $log) ---"
+                head -20 "$log" | tail -10
+                echo ""
+              fi
+            done
           else
             echo "✅ All 5 agents registered successfully!"
           fi
@@ -195,3 +250,23 @@ jobs:
             .pr-reviewer/*.json
           retention-days: 7
           if-no-files-found: ignore
+
+      - name: 🧹 Cleanup
+        if: always()
+        run: |
+          echo "Cleaning up processes..."
+
+          # Kill AgentField server
+          if [ -f .pr-reviewer/agentfield.pid ]; then
+            SERVER_PID=$(cat .pr-reviewer/agentfield.pid)
+            if ps -p $SERVER_PID > /dev/null 2>&1; then
+              echo "Stopping AgentField server (PID: $SERVER_PID)..."
+              kill $SERVER_PID 2>/dev/null || true
+            fi
+          fi
+
+          # Kill any remaining Python agent processes
+          echo "Stopping agent processes..."
+          pkill -f "python.*agents.*_agent.py" 2>/dev/null || true
+
+          echo "✅ Cleanup complete"

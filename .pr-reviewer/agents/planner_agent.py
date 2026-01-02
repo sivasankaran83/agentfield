@@ -4,7 +4,7 @@ Creates remediation plans based on analysis results with human oversight
 """
 
 from agentfield import Agent
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 import os
 import json
 
@@ -125,7 +125,7 @@ def calculate_priority(issue: Dict) -> str:
 
 
 @app.skill()
-def estimate_effort(issue: Dict) -> Dict[str, any]:
+def estimate_effort(issue: Dict) -> Dict[str, Any]:
     """
     Estimate effort and complexity to fix an issue
     

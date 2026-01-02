@@ -222,12 +222,23 @@ jobs:
           export PYTHONPATH="${{ github.workspace }}/.pr-reviewer:$PYTHONPATH"
           export AGENTFIELD_SERVER="http://localhost:8080"
 
+          # Give agents extra time to fully register (especially for comment-triggered runs)
+          echo "Waiting for all agents to be fully ready..."
+          sleep 5
+
           # Pre-flight check: Verify AgentField is still healthy
           echo "Verifying AgentField server health..."
-          if curl -s http://localhost:8080/health > /dev/null 2>&1; then
-            echo "✅ AgentField server is healthy"
-          else
-            echo "❌ AgentField server is not responding"
+          for i in {1..10}; do
+            if curl -s http://localhost:8080/health > /dev/null 2>&1; then
+              echo "✅ AgentField server is healthy (attempt $i)"
+              break
+            fi
+            echo "Attempt $i/10: Server not responding yet..."
+            sleep 2
+          done
+
+          if ! curl -s http://localhost:8080/health > /dev/null 2>&1; then
+            echo "❌ AgentField server is not responding after 20 seconds"
             echo "Checking server process..."
             if [ -f agentfield.pid ]; then
               SERVER_PID=$(cat agentfield.pid)
@@ -236,17 +247,36 @@ jobs:
               else
                 echo "Server process $SERVER_PID is not running"
               fi
+            else
+              echo "No PID file found"
             fi
             echo "=== Recent server logs ==="
             if [ -f logs/agentfield-server.log ]; then
-              tail -30 logs/agentfield-server.log
+              tail -50 logs/agentfield-server.log
+            else
+              echo "No server log file found"
             fi
+            echo "=== Directory contents ==="
+            ls -la
             exit 1
           fi
 
           # Check registered agents
           echo "Checking registered agents..."
-          curl -s http://localhost:8080/api/v1/agents | jq '.' || echo "Failed to query agents"
+          agent_list=$(curl -s http://localhost:8080/api/v1/agents 2>/dev/null || echo "[]")
+          echo "$agent_list" | jq '.' || echo "Failed to parse agent list"
+
+          agent_count=$(echo "$agent_list" | jq '. | length' 2>/dev/null || echo "0")
+          echo "Registered agents: $agent_count"
+
+          if [ "$agent_count" -lt "5" ]; then
+            echo "⚠️ Warning: Only $agent_count/5 agents are registered"
+            echo "Waiting 5 more seconds for agents to register..."
+            sleep 5
+
+            agent_count=$(curl -s http://localhost:8080/api/v1/agents 2>/dev/null | jq '. | length' || echo "0")
+            echo "After wait: $agent_count/5 agents registered"
+          fi
 
           # Run workflow
           echo "Starting workflow runner..."

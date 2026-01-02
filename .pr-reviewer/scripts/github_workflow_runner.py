@@ -113,18 +113,32 @@ async def call_agent_reasoner(
 
 async def check_agentfield_health() -> bool:
     """Check if AgentField is healthy"""
+    console.print(f"[dim]Checking AgentField at: {AGENTFIELD_SERVER}[/dim]")
+
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            health = await client.get(f"{AGENTFIELD_SERVER}/health")
-            if health.status_code != 200:
-                console.print(f"[red]❌ AgentField unhealthy[/red]")
-                return False
-            
-            console.print(f"[green]✅ AgentField healthy at {AGENTFIELD_SERVER}[/green]")
-            return True
-                
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            # Try multiple health check endpoints
+            endpoints = ["/health", "/api/v1/health", "/healthz"]
+
+            for endpoint in endpoints:
+                try:
+                    url = f"{AGENTFIELD_SERVER}{endpoint}"
+                    console.print(f"[dim]  Trying {url}...[/dim]")
+                    health = await client.get(url)
+
+                    if health.status_code == 200:
+                        console.print(f"[green]✅ AgentField healthy at {AGENTFIELD_SERVER}{endpoint}[/green]")
+                        return True
+                except Exception as e:
+                    console.print(f"[dim]  {endpoint} failed: {e}[/dim]")
+                    continue
+
+            console.print(f"[red]❌ AgentField unhealthy - no health endpoint responded[/red]")
+            return False
+
     except Exception as e:
         console.print(f"[red]❌ Cannot connect to AgentField: {e}[/red]")
+        console.print(f"[dim]Server URL: {AGENTFIELD_SERVER}[/dim]")
         return False
 
 
@@ -664,14 +678,22 @@ async def main():
     parser.add_argument('--repo', required=True)
     parser.add_argument('--context', default='')
     args = parser.parse_args()
-    
+
+    console.print(f"\n[bold]Environment Check[/bold]")
+    console.print(f"AGENTFIELD_SERVER: {AGENTFIELD_SERVER}")
+    console.print(f"GITHUB_TOKEN: {'set' if os.getenv('GITHUB_TOKEN') else 'NOT SET'}")
+    console.print(f"ANTHROPIC_API_KEY: {'set' if os.getenv('ANTHROPIC_API_KEY') else 'NOT SET'}")
+    console.print()
+
     github_token = os.getenv('GITHUB_TOKEN')
     if not github_token:
         console.print("[red]❌ GITHUB_TOKEN not set[/red]")
         sys.exit(1)
-    
+
+    console.print("[bold]Checking AgentField connection...[/bold]")
     if not await check_agentfield_health():
-        console.print(f"[red]❌ AgentField unavailable[/red]")
+        console.print(f"[red]❌ AgentField unavailable at {AGENTFIELD_SERVER}[/red]")
+        console.print("[yellow]Tip: Ensure AgentField server is running and accessible[/yellow]")
         sys.exit(1)
     
     g = Github(github_token)

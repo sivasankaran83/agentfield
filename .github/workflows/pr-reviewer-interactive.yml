@@ -220,6 +220,36 @@ jobs:
         working-directory: .pr-reviewer
         run: |
           export PYTHONPATH="${{ github.workspace }}/.pr-reviewer:$PYTHONPATH"
+          export AGENTFIELD_SERVER="http://localhost:8080"
+
+          # Pre-flight check: Verify AgentField is still healthy
+          echo "Verifying AgentField server health..."
+          if curl -s http://localhost:8080/health > /dev/null 2>&1; then
+            echo "✅ AgentField server is healthy"
+          else
+            echo "❌ AgentField server is not responding"
+            echo "Checking server process..."
+            if [ -f agentfield.pid ]; then
+              SERVER_PID=$(cat agentfield.pid)
+              if ps -p $SERVER_PID > /dev/null 2>&1; then
+                echo "Server process $SERVER_PID is running but not responding"
+              else
+                echo "Server process $SERVER_PID is not running"
+              fi
+            fi
+            echo "=== Recent server logs ==="
+            if [ -f logs/agentfield-server.log ]; then
+              tail -30 logs/agentfield-server.log
+            fi
+            exit 1
+          fi
+
+          # Check registered agents
+          echo "Checking registered agents..."
+          curl -s http://localhost:8080/api/v1/agents | jq '.' || echo "Failed to query agents"
+
+          # Run workflow
+          echo "Starting workflow runner..."
           python scripts/github_workflow_runner.py \
             --pr-number ${{ github.event.pull_request.number || github.event.issue.number }} \
             --action ${{ steps.parse_command.outputs.action }} \

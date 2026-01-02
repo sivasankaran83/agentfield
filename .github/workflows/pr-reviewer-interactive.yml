@@ -99,27 +99,31 @@ jobs:
             exit 1
           fi
           echo "Starting agents..."
-          
+
+          # Set PYTHONPATH to include .pr-reviewer directory for module imports
+          export PYTHONPATH="$BASE_DIR:$PYTHONPATH"
+          echo "PYTHONPATH set to: $PYTHONPATH"
+
           # Start each agent in background
           python "$BASE_DIR/agents/summarization_agent.py" > "$BASE_DIR/logs/summarizer.log" 2>&1 &
           sleep 2
-          
+
           python "$BASE_DIR/agents/planner_agent.py" > "$BASE_DIR/logs/planner.log" 2>&1 &
           sleep 2
-          
+
           python "$BASE_DIR/agents/executor_agent.py" > "$BASE_DIR/logs/executor.log" 2>&1 &
           sleep 2
-          
+
           python "$BASE_DIR/agents/verifier_agent.py" > "$BASE_DIR/logs/verifier.log" 2>&1 &
           sleep 2
-          
+
           python "$BASE_DIR/agents/generator_agent.py" > "$BASE_DIR/logs/generator.log" 2>&1 &
           sleep 5
-          
+
           # Verify agents registered with AgentField
           agent_count=$(curl -s http://localhost:8080/agents 2>/dev/null | jq '. | length' || echo "0")
           echo "Registered agents: $agent_count"
-          
+
           if [ "$agent_count" -lt "5" ]; then
             echo "⚠️ Warning: Only $agent_count/5 agents registered"
             echo "Continuing anyway..."
@@ -160,6 +164,7 @@ jobs:
         if: steps.parse_command.outputs.action != 'none'
         working-directory: .pr-reviewer
         run: |
+          export PYTHONPATH="${{ github.workspace }}/.pr-reviewer:$PYTHONPATH"
           python scripts/github_workflow_runner.py \
             --pr-number ${{ github.event.pull_request.number || github.event.issue.number }} \
             --action ${{ steps.parse_command.outputs.action }} \

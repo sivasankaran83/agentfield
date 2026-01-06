@@ -20,6 +20,7 @@ from schemas import (
     SecurityFixSuggestion,
     ExecutionSummary
 )
+from utils.llm_sanitizer import sanitize_llm_output
 
 # Initialize Executor Agent
 app = Agent(
@@ -335,11 +336,12 @@ async def fix_test_failure(
     """
 
     # Use Pydantic schema for structured response
-    fix_suggestion = await app.ai(
+    fix_suggestion_raw = await app.ai(
         user=fix_prompt,
         schema=TestFixSuggestion
     )
-    
+    fix_suggestion = sanitize_llm_output(fix_suggestion_raw)
+
     # Create backups
     backups = []
     files_to_modify = fix_suggestion.get('files_to_modify', [])
@@ -470,11 +472,12 @@ async def fix_linting_issue(
     """
 
     # Use Pydantic schema for structured response
-    fix_suggestion = await app.ai(
+    fix_suggestion_raw = await app.ai(
         user=fix_prompt,
         schema=LintingFixSuggestion
     )
-    
+    fix_suggestion = sanitize_llm_output(fix_suggestion_raw)
+
     # Create backup
     backup = create_backup(file)
     
@@ -564,10 +567,11 @@ async def fix_security_issue(
     """
 
     # Use Pydantic schema for structured response
-    fix_suggestion = await app.ai(
+    fix_suggestion_raw = await app.ai(
         user=fix_prompt,
         schema=SecurityFixSuggestion
     )
+    fix_suggestion = sanitize_llm_output(fix_suggestion_raw)
     
     # Create backup
     backup = create_backup(file)
@@ -739,10 +743,11 @@ async def execute_remediation_plan(plan: Dict) -> Dict:
     """
 
     # Use Pydantic schema for structured summary
-    summary_response = await app.ai(
+    summary_response_raw = await app.ai(
         user=summary_prompt,
         schema=ExecutionSummary
     )
+    summary_response = sanitize_llm_output(summary_response_raw)
     results['summary'] = summary_response
     results['status'] = 'success' if results['failed_fixes'] == 0 else 'partial'
     

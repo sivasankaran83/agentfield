@@ -17,6 +17,7 @@ from schemas import (
     ExecutionPlan,
     PlanValidationResult
 )
+from utils.llm_sanitizer import sanitize_llm_output
 
 # Initialize Planner Agent
 app = Agent(
@@ -247,11 +248,12 @@ async def create_remediation_plan(
     }}
     """
     # Use Pydantic schema for structured response
-    issue_strategies = await app.ai(
+    issue_strategies_raw = await app.ai(
         user=issue_analysis_prompt,
         schema=OverallIssueStrategy
     )
-    
+    issue_strategies = sanitize_llm_output(issue_strategies_raw)
+
     # Step 3: Create fix items for each issue
     fix_items = []
     
@@ -349,11 +351,12 @@ async def create_remediation_plan(
     """
     
     # Use Pydantic schema for structured response
-    execution_plan = await app.ai(
+    execution_plan_raw = await app.ai(
         user=execution_plan_prompt,
         schema=ExecutionPlan
     )
-    
+    execution_plan = sanitize_llm_output(execution_plan_raw)
+
     # Step 5: Generate human-readable summary
     summary_prompt = f"""
     Create a concise summary of this remediation plan for human review:
@@ -375,8 +378,9 @@ async def create_remediation_plan(
     
     # Get text response for summary
     human_summary_response = await app.ai(user=summary_prompt)
-    human_summary = human_summary_response.text if hasattr(human_summary_response, 'text') else str(human_summary_response)
-    
+    human_summary_raw = human_summary_response.text if hasattr(human_summary_response, 'text') else str(human_summary_response)
+    human_summary = sanitize_llm_output(human_summary_raw)
+
     # Step 6: Calculate statistics
     total_time = sum(fix['effort_minutes'] for fix in fix_items)
     automatable_count = len([f for f in fix_items if f.get('automatable', False)])
@@ -455,8 +459,9 @@ async def modify_plan(
 
     # Get text response for modification feedback
     modified_plan_response = await app.ai(user=modification_prompt)
-    modified_plan = modified_plan_response.text if hasattr(modified_plan_response, 'text') else str(modified_plan_response)
-    
+    modified_plan_raw = modified_plan_response.text if hasattr(modified_plan_response, 'text') else str(modified_plan_response)
+    modified_plan = sanitize_llm_output(modified_plan_raw)
+
     # Ensure modified plan has required structure
     if isinstance(modified_plan, dict):
         modified_plan['modified'] = True
@@ -510,11 +515,12 @@ async def validate_plan(plan: Dict) -> Dict:
     """
 
     # Use Pydantic schema for structured validation results
-    validation_results = await app.ai(
+    validation_results_raw = await app.ai(
         user=validation_prompt,
         schema=PlanValidationResult
     )
-    
+    validation_results = sanitize_llm_output(validation_results_raw)
+
     return validation_results
 
 

@@ -18,6 +18,7 @@ from schemas import (
     IssuePrioritization,
     ImprovementSuggestions
 )
+from utils.llm_sanitizer import sanitize_llm_output
 
 # Initialize Verifier Agent
 app = Agent(
@@ -373,11 +374,12 @@ async def verify_changes(
     """
 
     # Use Pydantic schema for structured response
-    ai_analysis = await app.ai(
+    ai_analysis_raw = await app.ai(
         user=analysis_prompt,
         schema=VerificationAnalysis
     )
-    
+    ai_analysis = sanitize_llm_output(ai_analysis_raw)
+
     verification_results['ai_analysis'] = ai_analysis
     verification_results['ready_to_merge'] = ai_analysis.get('ready_to_merge', False)
     verification_results['recommendation'] = ai_analysis.get('recommendation', 'manual_review')
@@ -531,11 +533,12 @@ async def identify_remaining_issues(verification_results: Dict) -> Dict:
     """
 
     # Use Pydantic schema for structured response
-    prioritization = await app.ai(
+    prioritization_raw = await app.ai(
         user=prioritization_prompt,
         schema=IssuePrioritization
     )
-    
+    prioritization = sanitize_llm_output(prioritization_raw)
+
     return {
         "remaining_issues": remaining_issues,
         "prioritization": prioritization,
@@ -593,10 +596,11 @@ async def generate_improvement_suggestions(
     """
 
     # Use Pydantic schema for structured response
-    suggestions = await app.ai(
+    suggestions_raw = await app.ai(
         user=suggestion_prompt,
         schema=ImprovementSuggestions
     )
+    suggestions = sanitize_llm_output(suggestions_raw)
 
     return suggestions
 

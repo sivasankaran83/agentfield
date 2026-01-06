@@ -22,6 +22,7 @@ from schemas import (
     ArchitecturalAnalysis,
     ComprehensiveInsights
 )
+from utils.llm_sanitizer import sanitize_llm_output
 
 # Initialize Summarization Agent with AgentField
 app = Agent(
@@ -467,10 +468,11 @@ async def analyze_architectural_design(
     """
 
     # Use Pydantic schema for structured response
-    architectural_analysis = await app.ai(
+    architectural_analysis_raw = await app.ai(
         user=architectural_prompt,
         schema=ArchitecturalAnalysis
     )
+    architectural_analysis = sanitize_llm_output(architectural_analysis_raw)
 
     return architectural_analysis
 
@@ -552,11 +554,12 @@ async def analyze_pr(
     """
 
     # Use Pydantic schema for structured response
-    analysis_plan = await app.ai(
+    analysis_plan_raw = await app.ai(
         user=plan_prompt,
         schema=AnalysisPlan
     )
-    
+    analysis_plan = sanitize_llm_output(analysis_plan_raw)
+
     print(f"Analysis plan created: {analysis_plan.get('rationale', '')}")
     
     # Step 5: Run language-specific analysis
@@ -627,11 +630,12 @@ async def analyze_pr(
     """
 
     # Use Pydantic schema for structured response
-    ai_insights = await app.ai(
+    ai_insights_raw = await app.ai(
         user=combined_analysis_prompt,
         schema=ComprehensiveInsights
     )
-    
+    ai_insights = sanitize_llm_output(ai_insights_raw)
+
     # Step 9: Compile comprehensive summary
     comprehensive_summary = {
         "pr_number": pr_number,

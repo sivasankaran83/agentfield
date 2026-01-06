@@ -21,6 +21,7 @@ from schemas import (
     MergeSafetyCheck,
     FinalReport
 )
+from utils.llm_sanitizer import sanitize_llm_output
 
 # Initialize Generator Agent
 app = Agent(
@@ -171,13 +172,14 @@ async def generate_commit_message(
     """
 
     # Use Pydantic schema for structured response
-    commit_message_response = await app.ai(
+    commit_message_response_raw = await app.ai(
         user=commit_prompt,
         schema=CommitMessage
     )
+    commit_message_response = sanitize_llm_output(commit_message_response_raw)
 
     # Return the full commit message text
-    return f"{commit_message_response.subject}\n\n{commit_message_response.body}"
+    return f"{commit_message_response['subject']}\n\n{commit_message_response['body']}"
 
 
 @app.reasoner()
@@ -235,29 +237,30 @@ async def generate_pr_description(
     """
 
     # Use Pydantic schema for structured response
-    pr_description_response = await app.ai(
+    pr_description_response_raw = await app.ai(
         user=description_prompt,
         schema=PRDescription
     )
+    pr_description_response = sanitize_llm_output(pr_description_response_raw)
 
     # Format into markdown
     return f"""## Summary
-{pr_description_response.summary}
+{pr_description_response['summary']}
 
 ## Changes Made
-{chr(10).join('- ' + change for change in pr_description_response.changes_made)}
+{chr(10).join('- ' + change for change in pr_description_response['changes_made'])}
 
 ## Fixes Applied by AI
-{pr_description_response.fixes_applied}
+{pr_description_response['fixes_applied']}
 
 ## Testing
-{pr_description_response.testing}
+{pr_description_response['testing']}
 
 ## Verification
-{pr_description_response.verification}
+{pr_description_response['verification']}
 
 ## Notes for Reviewers
-{pr_description_response.notes_for_reviewers}"""
+{pr_description_response['notes_for_reviewers']}"""
 
 
 @app.reasoner()
@@ -314,10 +317,11 @@ async def decide_action(
     """
 
     # Use Pydantic schema for structured response
-    decision = await app.ai(
+    decision_raw = await app.ai(
         user=decision_prompt,
         schema=ActionDecision
     )
+    decision = sanitize_llm_output(decision_raw)
 
     return decision
 
@@ -465,11 +469,12 @@ async def merge_pr(
     """
 
     # Use Pydantic schema for structured response
-    merge_check = await app.ai(
+    merge_check_raw = await app.ai(
         user=merge_check_prompt,
         schema=MergeSafetyCheck
     )
-    
+    merge_check = sanitize_llm_output(merge_check_raw)
+
     if not merge_check.get('safe_to_merge', False):
         return {
             "status": "blocked",
@@ -555,11 +560,12 @@ async def generate_final_report(
     """
 
     # Use Pydantic schema for structured response
-    narrative_report = await app.ai(
+    narrative_report_raw = await app.ai(
         user=report_prompt,
         schema=FinalReport
     )
-    
+    narrative_report = sanitize_llm_output(narrative_report_raw)
+
     # Compile complete report
     complete_report = {
         "timestamp": datetime.now().isoformat(),

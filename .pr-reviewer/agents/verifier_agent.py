@@ -8,6 +8,16 @@ from typing import Dict, List, Optional
 import os
 import subprocess
 import json
+import sys
+from pathlib import Path
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from schemas import (
+    VerificationAnalysis,
+    IssuePrioritization,
+    ImprovementSuggestions
+)
 
 # Initialize Verifier Agent
 app = Agent(
@@ -361,8 +371,12 @@ async def verify_changes(
         "confidence": "low|medium|high"
     }}
     """
-    
-    ai_analysis = await app.ai(analysis_prompt)
+
+    # Use Pydantic schema for structured response
+    ai_analysis = await app.ai(
+        user=analysis_prompt,
+        schema=VerificationAnalysis
+    )
     
     verification_results['ai_analysis'] = ai_analysis
     verification_results['ready_to_merge'] = ai_analysis.get('ready_to_merge', False)
@@ -515,8 +529,12 @@ async def identify_remaining_issues(verification_results: Dict) -> Dict:
         "estimated_time_to_unblock": "total minutes"
     }}
     """
-    
-    prioritization = await app.ai(prioritization_prompt)
+
+    # Use Pydantic schema for structured response
+    prioritization = await app.ai(
+        user=prioritization_prompt,
+        schema=IssuePrioritization
+    )
     
     return {
         "remaining_issues": remaining_issues,
@@ -573,9 +591,13 @@ async def generate_improvement_suggestions(
         "priority_order": ["ordered list of what to do first"]
     }}
     """
-    
-    suggestions = await app.ai(suggestion_prompt)
-    
+
+    # Use Pydantic schema for structured response
+    suggestions = await app.ai(
+        user=suggestion_prompt,
+        schema=ImprovementSuggestions
+    )
+
     return suggestions
 
 

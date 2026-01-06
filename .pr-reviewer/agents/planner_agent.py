@@ -7,6 +7,16 @@ from agentfield import Agent
 from typing import Dict, List, Optional, Any
 import os
 import json
+import sys
+from pathlib import Path
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from schemas import (
+    OverallIssueStrategy,
+    ExecutionPlan,
+    PlanValidationResult
+)
 
 # Initialize Planner Agent
 app = Agent(
@@ -236,9 +246,11 @@ async def create_remediation_plan(
         "focus_areas": ["priority 1", "priority 2", "priority 3"]
     }}
     """
-    # Pass pydantic schema
-    # OpenRouter
-    issue_strategies = await app.ai(issue_analysis_prompt)
+    # Use Pydantic schema for structured response
+    issue_strategies = await app.ai(
+        user=issue_analysis_prompt,
+        schema=OverallIssueStrategy
+    )
     
     # Step 3: Create fix items for each issue
     fix_items = []
@@ -336,7 +348,11 @@ async def create_remediation_plan(
     }}
     """
     
-    execution_plan = await app.ai(execution_plan_prompt)
+    # Use Pydantic schema for structured response
+    execution_plan = await app.ai(
+        user=execution_plan_prompt,
+        schema=ExecutionPlan
+    )
     
     # Step 5: Generate human-readable summary
     summary_prompt = f"""
@@ -357,7 +373,9 @@ async def create_remediation_plan(
     Be direct, actionable, and specific.
     """
     
-    human_summary = await app.ai(summary_prompt)
+    # Get text response for summary
+    human_summary_response = await app.ai(user=summary_prompt)
+    human_summary = human_summary_response.text if hasattr(human_summary_response, 'text') else str(human_summary_response)
     
     # Step 6: Calculate statistics
     total_time = sum(fix['effort_minutes'] for fix in fix_items)
@@ -410,32 +428,34 @@ async def modify_plan(
     
     modification_prompt = f"""
     Modify this remediation plan based on human feedback:
-    
+
     Original Plan Summary:
     - Total fixes: {original_plan.get('total_fixes', 0)}
     - Critical: {original_plan.get('by_priority', {}).get('critical', 0)}
     - Estimated time: {original_plan.get('estimated_total_time', 0)} minutes
-    
+
     Original Fix Items:
     {json.dumps(original_plan.get('fix_items', [])[:10], indent=2)}
-    
+
     Human Feedback:
     {modifications}
-    
+
     Apply the requested modifications. Common requests:
     - "Skip linting fixes" - remove code_quality items
     - "Focus on security" - prioritize security items
     - "Only critical issues" - filter to critical priority only
     - "Add X" - include additional considerations
-    
+
     Return the complete modified plan in the same format, ensuring:
     1. All requested changes are applied
     2. Plan remains coherent
     3. Priorities are recalculated if needed
     4. Summary is updated
     """
-    
-    modified_plan = await app.ai(modification_prompt)
+
+    # Get text response for modification feedback
+    modified_plan_response = await app.ai(user=modification_prompt)
+    modified_plan = modified_plan_response.text if hasattr(modified_plan_response, 'text') else str(modified_plan_response)
     
     # Ensure modified plan has required structure
     if isinstance(modified_plan, dict):
@@ -460,9 +480,9 @@ async def validate_plan(plan: Dict) -> Dict:
     
     validation_prompt = f"""
     Validate this remediation plan for completeness and feasibility:
-    
+
     {json.dumps(plan, indent=2)}
-    
+
     Check for:
     1. All critical issues are addressed
     2. Execution order is logical (no circular dependencies)
@@ -470,7 +490,7 @@ async def validate_plan(plan: Dict) -> Dict:
     4. Adequate testing/validation steps
     5. Clear rollback strategy
     6. Human review points are appropriate
-    
+
     Return as JSON:
     {{
         "valid": true/false,
@@ -488,8 +508,12 @@ async def validate_plan(plan: Dict) -> Dict:
         "recommendation": "approve|revise|reject"
     }}
     """
-    
-    validation_results = await app.ai(validation_prompt)
+
+    # Use Pydantic schema for structured validation results
+    validation_results = await app.ai(
+        user=validation_prompt,
+        schema=PlanValidationResult
+    )
     
     return validation_results
 

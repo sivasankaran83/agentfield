@@ -10,6 +10,16 @@ import subprocess
 import json
 from pathlib import Path
 import shutil
+import sys
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from schemas import (
+    TestFixSuggestion,
+    LintingFixSuggestion,
+    SecurityFixSuggestion,
+    ExecutionSummary
+)
 
 # Initialize Executor Agent
 app = Agent(
@@ -290,20 +300,20 @@ async def fix_test_failure(
     # Use AI to analyze and suggest fix
     fix_prompt = f"""
     A test is failing and needs to be fixed:
-    
+
     Test Name: {test_name}
     Language: {language}
     Error Message:
     {error_message}
-    
+
     Available File Contents:
     {json.dumps({k: v[:2000] for k, v in file_contents.items()}, indent=2)}
-    
+
     Analyze the error and provide a fix:
     1. Identify the root cause
     2. Determine which file(s) need modification
     3. Provide exact code changes
-    
+
     Return as JSON:
     {{
         "root_cause": "explanation of why test is failing",
@@ -323,8 +333,12 @@ async def fix_test_failure(
         "additional_steps": ["any manual steps needed"]
     }}
     """
-    
-    fix_suggestion = await app.ai(fix_prompt)
+
+    # Use Pydantic schema for structured response
+    fix_suggestion = await app.ai(
+        user=fix_prompt,
+        schema=TestFixSuggestion
+    )
     
     # Create backups
     backups = []
@@ -434,19 +448,19 @@ async def fix_linting_issue(
     # Use AI to fix
     fix_prompt = f"""
     Fix this linting issue:
-    
+
     File: {file}
     Line: {line}
     Language: {language}
     Issue: {message}
-    
+
     Code Context (lines {start_line}-{end_line}):
     ```
     {context}
     ```
-    
+
     Provide the corrected code for this section.
-    
+
     Return as JSON:
     {{
         "fixed_code": "corrected code for the section",
@@ -454,8 +468,12 @@ async def fix_linting_issue(
         "confidence": "low|medium|high"
     }}
     """
-    
-    fix_suggestion = await app.ai(fix_prompt)
+
+    # Use Pydantic schema for structured response
+    fix_suggestion = await app.ai(
+        user=fix_prompt,
+        schema=LintingFixSuggestion
+    )
     
     # Create backup
     backup = create_backup(file)
@@ -519,20 +537,20 @@ async def fix_security_issue(
     # Use AI to analyze and fix
     fix_prompt = f"""
     Fix this security vulnerability:
-    
+
     File: {file}
     Line: {line}
     Severity: {severity}
     Language: {language}
     Issue: {message}
-    
+
     Full file content:
     ```
     {content[:5000]}  # Limit to first 5000 chars
     ```
-    
+
     Provide a secure fix that properly addresses the vulnerability.
-    
+
     Return as JSON:
     {{
         "vulnerability_type": "specific type of vulnerability",
@@ -544,8 +562,12 @@ async def fix_security_issue(
         "confidence": "low|medium|high"
     }}
     """
-    
-    fix_suggestion = await app.ai(fix_prompt)
+
+    # Use Pydantic schema for structured response
+    fix_suggestion = await app.ai(
+        user=fix_prompt,
+        schema=SecurityFixSuggestion
+    )
     
     # Create backup
     backup = create_backup(file)
@@ -702,22 +724,26 @@ async def execute_remediation_plan(plan: Dict) -> Dict:
     # Use AI to summarize execution
     summary_prompt = f"""
     Summarize this remediation execution for human review:
-    
+
     Total attempted: {results['total_fixes']}
     Successful: {results['successful_fixes']}
     Failed: {results['failed_fixes']}
-    
+
     Sample results:
     {json.dumps(results['details'][:5], indent=2)}
-    
+
     Provide a brief 2-3 sentence summary explaining:
     - What was accomplished
     - Any failures and why
     - Next steps if needed
     """
-    
-    summary = await app.ai(summary_prompt)
-    results['summary'] = summary
+
+    # Use Pydantic schema for structured summary
+    summary_response = await app.ai(
+        user=summary_prompt,
+        schema=ExecutionSummary
+    )
+    results['summary'] = summary_response
     results['status'] = 'success' if results['failed_fixes'] == 0 else 'partial'
     
     return results

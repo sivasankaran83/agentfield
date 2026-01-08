@@ -187,9 +187,11 @@ jobs:
           fi
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          AGENTFIELD_SERVER: http://localhost:8080
+          AGENTFIELD_SERVER: ${{ env.AGENTFIELD_SERVER }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
+          AI_MODEL: ${{ secrets.AI_MODEL }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+
       - name: 🔍 Parse Command
         id: parse_command
         run: |

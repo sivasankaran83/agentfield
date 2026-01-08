@@ -11,8 +11,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-from core.summarizer import EnhancedMultiLanguageSummarizer
-from core.llm_summary import LLMSummaryGenerator
 from utils.git_utils import GitUtils
 
 # Add parent directory to path for imports
@@ -257,19 +255,341 @@ def run_language_analysis(language: str, files: List[str]) -> Dict:
 
 
 @app.skill()
-def generate_llm_summary(base_branch: str = "main", head_branch: str = "HEAD") -> Dict:
+def get_git_diff(base_branch: str = "main", head_branch: str = "HEAD") -> str:
     """
-    Generate LLM-powered summary using Claude API
-    
+    Get git diff between branches
+
     Args:
         base_branch: Base branch for comparison
         head_branch: Head branch (PR branch)
-        
+
+    Returns:
+        Git diff output
+    """
+    try:
+        result = subprocess.run(
+            ["git", "diff", f"{base_branch}...{head_branch}"],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=30
+        )
+        return result.stdout
+    except Exception as e:
+        return f"Error getting git diff: {e}"
+
+
+@app.skill()
+def get_commit_messages(base_branch: str = "main", head_branch: str = "HEAD") -> List[str]:
+    """
+    Get commit messages in the PR
+
+    Args:
+        base_branch: Base branch
+        head_branch: Head branch
+
+    Returns:
+        List of commit messages
+    """
+    try:
+        result = subprocess.run(
+            ["git", "log", f"{base_branch}..{head_branch}", "--pretty=format:%s"],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=30
+        )
+        messages = [msg.strip() for msg in result.stdout.split('\n') if msg.strip()]
+        return messages
+    except Exception as e:
+        return [f"Error getting commits: {e}"]
+
+
+@app.skill()
+def get_changed_file_stats(base_branch: str = "main", head_branch: str = "HEAD") -> str:
+    """
+    Get statistics about changed files
+
+    Args:
+        base_branch: Base branch
+        head_branch: Head branch
+
+    Returns:
+        File statistics
+    """
+    try:
+        result = subprocess.run(
+            ["git", "diff", "--stat", f"{base_branch}...{head_branch}"],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=30
+        )
+        return result.stdout
+    except Exception as e:
+        return f"Error getting file stats: {e}"
+
+
+@app.reasoner()
+async def generate_comprehensive_summary(
+    base_branch: str = "main",
+    head_branch: str = "HEAD",
+    max_diff_length: int = 10000
+) -> Dict:
+    """
+    Generate comprehensive PR summary using AI
+
+    Args:
+        base_branch: Base branch for comparison
+        head_branch: Head branch (PR branch)
+        max_diff_length: Maximum length of diff to analyze
+
+    Returns:
+        Comprehensive summary dictionary
+    """
+
+    # Get git information
+    git_diff = get_git_diff(base_branch, head_branch)
+    commit_messages = get_commit_messages(base_branch, head_branch)
+    file_stats = get_changed_file_stats(base_branch, head_branch)
+
+    # Truncate diff if too long
+    if len(git_diff) > max_diff_length:
+        git_diff = git_diff[:max_diff_length] + "\n\n... (truncated)"
+
+    # Create prompt for AI
+    prompt = f"""
+Analyze this Pull Request and provide a comprehensive summary.
+
+COMMIT MESSAGES:
+{json.dumps(commit_messages, indent=2)}
+
+FILE STATISTICS:
+{file_stats}
+
+GIT DIFF (changes made):
+{git_diff}
+
+Provide a comprehensive analysis in JSON format:
+
+{{
+    "executive_summary": "2-3 sentence high-level summary of what this PR does",
+
+    "pr_type": "feature|bugfix|refactor|documentation|test|chore|hotfix",
+
+    "risk_assessment": "low|medium|high|critical",
+
+    "key_changes": [
+        "Most important change 1",
+        "Most important change 2",
+        "Most important change 3"
+    ],
+
+    "files_affected": {{
+        "added": ["list of new files"],
+        "modified": ["list of modified files"],
+        "deleted": ["list of deleted files"]
+    }},
+
+    "impact_analysis": {{
+        "scope": "small|medium|large - how much of the codebase is affected",
+        "complexity": "low|medium|high - how complex are the changes",
+        "dependencies": "Are there external dependency changes?",
+        "backwards_compatibility": "Does this maintain backwards compatibility?"
+    }},
+
+    "testing_requirements": [
+        "What tests should be run",
+        "What test coverage is needed",
+        "Edge cases to test"
+    ],
+
+    "breaking_changes": [
+        "List any breaking changes or empty array"
+    ],
+
+    "security_considerations": [
+        "Any security implications",
+        "Authentication/authorization changes",
+        "Data handling changes"
+    ],
+
+    "recommendations": [
+        "Suggestion 1 for reviewers",
+        "Suggestion 2 for reviewers",
+        "Areas requiring special attention"
+    ],
+
+    "estimated_review_time": "5m|15m|30m|1h|2h+ - estimated time to review",
+
+    "confidence": "low|medium|high - confidence in this analysis"
+}}
+
+Focus on:
+- What problem does this solve?
+- How does it solve it?
+- What are the risks?
+- What should reviewers focus on?
+
+Return ONLY valid JSON, no other text.
+"""
+
+    try:
+        # Call app.ai for structured response
+        response_raw = await app.ai(user=prompt)
+
+        # Handle response - it might have a .text attribute or be a string
+        if hasattr(response_raw, 'text'):
+            content = response_raw.text
+        else:
+            content = str(response_raw)
+
+        # Parse JSON
+        try:
+            summary = json.loads(content)
+            return sanitize_llm_output(summary)
+        except json.JSONDecodeError:
+            # Try to extract JSON if wrapped in markdown
+            if "```json" in content:
+                json_start = content.find("```json") + 7
+                json_end = content.find("```", json_start)
+                content = content[json_start:json_end].strip()
+                summary = json.loads(content)
+                return sanitize_llm_output(summary)
+            else:
+                raise
+
+    except Exception as e:
+        # Return error summary
+        return {
+            "executive_summary": f"Error generating LLM summary: {e}",
+            "pr_type": "unknown",
+            "risk_assessment": "unknown",
+            "key_changes": [],
+            "impact_analysis": {},
+            "testing_requirements": [],
+            "breaking_changes": [],
+            "security_considerations": [],
+            "recommendations": [],
+            "estimated_review_time": "unknown",
+            "confidence": "low",
+            "error": str(e)
+        }
+
+
+@app.reasoner()
+async def generate_quick_summary(commit_messages: List[str]) -> str:
+    """
+    Generate a quick one-line summary from commit messages
+
+    Args:
+        commit_messages: List of commit messages
+
+    Returns:
+        Quick summary string
+    """
+    try:
+        prompt = f"""
+Summarize these commit messages in ONE sentence:
+
+{json.dumps(commit_messages, indent=2)}
+
+Return ONLY the summary sentence, nothing else.
+"""
+
+        response_raw = await app.ai(user=prompt)
+
+        # Handle response - it might have a .text attribute or be a string
+        if hasattr(response_raw, 'text'):
+            summary = response_raw.text.strip()
+        else:
+            summary = str(response_raw).strip()
+
+        return sanitize_llm_output(summary)
+
+    except Exception as e:
+        return f"Multiple commits: {len(commit_messages)} changes"
+
+
+@app.reasoner()
+async def analyze_code_quality(code_snippet: str, language: str) -> Dict:
+    """
+    Analyze code quality of a specific snippet
+
+    Args:
+        code_snippet: Code to analyze
+        language: Programming language
+
+    Returns:
+        Quality analysis
+    """
+    try:
+        prompt = f"""
+Analyze this {language} code for quality:
+
+```{language}
+{code_snippet}
+```
+
+Provide analysis in JSON:
+{{
+    "readability": "excellent|good|fair|poor",
+    "maintainability": "excellent|good|fair|poor",
+    "issues": ["list specific issues"],
+    "suggestions": ["list improvements"],
+    "complexity": "low|medium|high"
+}}
+
+Return ONLY valid JSON.
+"""
+
+        response_raw = await app.ai(user=prompt)
+
+        # Handle response - it might have a .text attribute or be a string
+        if hasattr(response_raw, 'text'):
+            content = response_raw.text
+        else:
+            content = str(response_raw)
+
+        analysis = json.loads(content)
+        return sanitize_llm_output(analysis)
+
+    except Exception as e:
+        return {
+            "readability": "unknown",
+            "maintainability": "unknown",
+            "issues": [str(e)],
+            "suggestions": [],
+            "complexity": "unknown"
+        }
+
+
+@app.skill()
+def generate_llm_summary(base_branch: str = "main", head_branch: str = "HEAD") -> Dict:
+    """
+    Generate LLM-powered summary (synchronous wrapper)
+
+    This is a synchronous wrapper that calls the async generate_comprehensive_summary.
+    Used for backward compatibility with existing code.
+
+    Args:
+        base_branch: Base branch for comparison
+        head_branch: Head branch (PR branch)
+
     Returns:
         LLM-generated summary
     """
-    generator = LLMSummaryGenerator()
-    return generator.generate_comprehensive_summary(base_branch, head_branch)
+    import asyncio
+
+    # Get the event loop
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    # Run the async function
+    return loop.run_until_complete(generate_comprehensive_summary(base_branch, head_branch))
 
 
 @app.skill()

@@ -60,6 +60,11 @@ jobs:
             curl -sSf https://agentfield.ai/get | bash
             echo "$HOME/.agentfield/bin" >> $GITHUB_PATH
 
+      - name: 📁 Create Working Directories
+        run: |
+          mkdir -p .pr-reviewer/logs
+          mkdir -p .pr-reviewer/results
+
       - name: 🚀 Start AgentField Server
         run: |
           export PATH="$HOME/.agentfield/bin:$PATH"

@@ -8,6 +8,17 @@ from typing import Dict, List, Optional
 import os
 import subprocess
 import json
+import sys
+from pathlib import Path
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from schemas import (
+    VerificationAnalysis,
+    IssuePrioritization,
+    ImprovementSuggestions
+)
+from utils.llm_sanitizer import sanitize_llm_output
 
 # Initialize Verifier Agent
 app = Agent(
@@ -361,9 +372,14 @@ async def verify_changes(
         "confidence": "low|medium|high"
     }}
     """
-    
-    ai_analysis = await app.ai(analysis_prompt)
-    
+
+    # Use Pydantic schema for structured response
+    ai_analysis_raw = await app.ai(
+        user=analysis_prompt,
+        schema=VerificationAnalysis
+    )
+    ai_analysis = sanitize_llm_output(ai_analysis_raw)
+
     verification_results['ai_analysis'] = ai_analysis
     verification_results['ready_to_merge'] = ai_analysis.get('ready_to_merge', False)
     verification_results['recommendation'] = ai_analysis.get('recommendation', 'manual_review')
@@ -515,9 +531,14 @@ async def identify_remaining_issues(verification_results: Dict) -> Dict:
         "estimated_time_to_unblock": "total minutes"
     }}
     """
-    
-    prioritization = await app.ai(prioritization_prompt)
-    
+
+    # Use Pydantic schema for structured response
+    prioritization_raw = await app.ai(
+        user=prioritization_prompt,
+        schema=IssuePrioritization
+    )
+    prioritization = sanitize_llm_output(prioritization_raw)
+
     return {
         "remaining_issues": remaining_issues,
         "prioritization": prioritization,
@@ -573,9 +594,14 @@ async def generate_improvement_suggestions(
         "priority_order": ["ordered list of what to do first"]
     }}
     """
-    
-    suggestions = await app.ai(suggestion_prompt)
-    
+
+    # Use Pydantic schema for structured response
+    suggestions_raw = await app.ai(
+        user=suggestion_prompt,
+        schema=ImprovementSuggestions
+    )
+    suggestions = sanitize_llm_output(suggestions_raw)
+
     return suggestions
 
 

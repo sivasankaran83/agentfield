@@ -8,10 +8,21 @@ from typing import Dict, List, Optional
 import os
 import json
 import subprocess
+import sys
+from pathlib import Path
 
 from core.summarizer import EnhancedMultiLanguageSummarizer
 from core.llm_summary import LLMSummaryGenerator
 from utils.git_utils import GitUtils
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from schemas import (
+    AnalysisPlan,
+    ArchitecturalAnalysis,
+    ComprehensiveInsights
+)
+from utils.llm_sanitizer import sanitize_llm_output
 
 # Initialize Summarization Agent with AgentField
 app = Agent(
@@ -455,9 +466,14 @@ async def analyze_architectural_design(
     Be specific with file names and line numbers where possible.
     Focus on actionable feedback.
     """
-    
-    architectural_analysis = await app.ai(architectural_prompt)
-    
+
+    # Use Pydantic schema for structured response
+    architectural_analysis_raw = await app.ai(
+        user=architectural_prompt,
+        schema=ArchitecturalAnalysis
+    )
+    architectural_analysis = sanitize_llm_output(architectural_analysis_raw)
+
     return architectural_analysis
 
 
@@ -526,7 +542,7 @@ async def analyze_pr(
     
     Create a prioritized analysis plan focusing on the most important checks first.
     Consider that we have limited time and should focus on high-impact analysis.
-    
+
     Return a JSON object with:
     {{
         "priority_languages": ["list of languages to analyze first"],
@@ -536,9 +552,14 @@ async def analyze_pr(
         "rationale": "why this order"
     }}
     """
-    
-    analysis_plan = await app.ai(plan_prompt)
-    
+
+    # Use Pydantic schema for structured response
+    analysis_plan_raw = await app.ai(
+        user=plan_prompt,
+        schema=AnalysisPlan
+    )
+    analysis_plan = sanitize_llm_output(analysis_plan_raw)
+
     print(f"Analysis plan created: {analysis_plan.get('rationale', '')}")
     
     # Step 5: Run language-specific analysis
@@ -607,9 +628,14 @@ async def analyze_pr(
         "summary": "2-3 sentence overall summary"
     }}
     """
-    
-    ai_insights = await app.ai(combined_analysis_prompt)
-    
+
+    # Use Pydantic schema for structured response
+    ai_insights_raw = await app.ai(
+        user=combined_analysis_prompt,
+        schema=ComprehensiveInsights
+    )
+    ai_insights = sanitize_llm_output(ai_insights_raw)
+
     # Step 9: Compile comprehensive summary
     comprehensive_summary = {
         "pr_number": pr_number,

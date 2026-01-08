@@ -9,6 +9,19 @@ import os
 import subprocess
 import json
 from datetime import datetime
+import sys
+from pathlib import Path
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from schemas import (
+    CommitMessage,
+    PRDescription,
+    ActionDecision,
+    MergeSafetyCheck,
+    FinalReport
+)
+from utils.llm_sanitizer import sanitize_llm_output
 
 # Initialize Generator Agent
 app = Agent(
@@ -139,29 +152,34 @@ async def generate_commit_message(
     {diff_summary}
     
     Create a commit message following conventional commits format:
-    
+
     <type>(<scope>): <subject>
-    
+
     <body>
-    
+
     Types: fix, feat, refactor, test, docs, style, chore
     Keep subject under 50 chars
     Body should explain what was fixed and why
-    
+
     Example:
     fix(auth): resolve OAuth token validation issues
-    
+
     - Fixed failing test_oauth_google test
     - Addressed security vulnerability in token storage
     - Improved error handling for invalid tokens
-    
+
     Generate the commit message for the current changes.
-    Return ONLY the commit message text, no JSON or markdown.
     """
-    
-    commit_message = await app.ai(commit_prompt)
-    
-    return commit_message
+
+    # Use Pydantic schema for structured response
+    commit_message_response_raw = await app.ai(
+        user=commit_prompt,
+        schema=CommitMessage
+    )
+    commit_message_response = sanitize_llm_output(commit_message_response_raw)
+
+    # Return the full commit message text
+    return f"{commit_message_response['subject']}\n\n{commit_message_response['body']}"
 
 
 @app.reasoner()
@@ -196,32 +214,53 @@ async def generate_pr_description(
     {json.dumps(verification_results.get('summary', {}), indent=2)}
     
     Create a markdown PR description with:
-    
+
     ## Summary
     [Brief 2-3 sentence overview]
-    
+
     ## Changes Made
     [Bullet list of key changes]
-    
+
     ## Fixes Applied by AI
     [What the PR Reviewer Agent fixed]
-    
+
     ## Testing
     [Testing status and coverage]
-    
+
     ## Verification
     [Quality improvements and checks]
-    
+
     ## Notes for Reviewers
     [Important points to review]
-    
+
     Keep it professional, clear, and actionable.
-    Return ONLY the markdown text.
     """
-    
-    pr_description = await app.ai(description_prompt)
-    
-    return pr_description
+
+    # Use Pydantic schema for structured response
+    pr_description_response_raw = await app.ai(
+        user=description_prompt,
+        schema=PRDescription
+    )
+    pr_description_response = sanitize_llm_output(pr_description_response_raw)
+
+    # Format into markdown
+    return f"""## Summary
+{pr_description_response['summary']}
+
+## Changes Made
+{chr(10).join('- ' + change for change in pr_description_response['changes_made'])}
+
+## Fixes Applied by AI
+{pr_description_response['fixes_applied']}
+
+## Testing
+{pr_description_response['testing']}
+
+## Verification
+{pr_description_response['verification']}
+
+## Notes for Reviewers
+{pr_description_response['notes_for_reviewers']}"""
 
 
 @app.reasoner()
@@ -266,7 +305,7 @@ async def decide_action(
     - If ready_to_merge and no changes: can merge
     - If quality improved but issues remain: manual_review
     - If quality decreased: abort
-    
+
     Return JSON:
     {{
         "action": "merge|update_pr|manual_review|abort",
@@ -276,9 +315,14 @@ async def decide_action(
         "next_steps": ["what happens next"]
     }}
     """
-    
-    decision = await app.ai(decision_prompt)
-    
+
+    # Use Pydantic schema for structured response
+    decision_raw = await app.ai(
+        user=decision_prompt,
+        schema=ActionDecision
+    )
+    decision = sanitize_llm_output(decision_raw)
+
     return decision
 
 
@@ -413,7 +457,7 @@ async def merge_pr(
     3. Quality improved or maintained
     4. No new security issues
     5. No breaking changes introduced
-    
+
     Return JSON:
     {{
         "safe_to_merge": true/false,
@@ -423,9 +467,14 @@ async def merge_pr(
         "final_checks": ["checklist for human"]
     }}
     """
-    
-    merge_check = await app.ai(merge_check_prompt)
-    
+
+    # Use Pydantic schema for structured response
+    merge_check_raw = await app.ai(
+        user=merge_check_prompt,
+        schema=MergeSafetyCheck
+    )
+    merge_check = sanitize_llm_output(merge_check_raw)
+
     if not merge_check.get('safe_to_merge', False):
         return {
             "status": "blocked",
@@ -503,16 +552,20 @@ async def generate_final_report(
     
     ## Lessons Learned
     [What went well, what could improve]
-    
+
     ## Recommendations for Future PRs
     [Actionable suggestions]
-    
+
     Make it professional and suitable for stakeholders.
-    Return as markdown.
     """
-    
-    narrative_report = await app.ai(report_prompt)
-    
+
+    # Use Pydantic schema for structured response
+    narrative_report_raw = await app.ai(
+        user=report_prompt,
+        schema=FinalReport
+    )
+    narrative_report = sanitize_llm_output(narrative_report_raw)
+
     # Compile complete report
     complete_report = {
         "timestamp": datetime.now().isoformat(),

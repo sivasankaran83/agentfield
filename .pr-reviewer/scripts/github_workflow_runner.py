@@ -158,6 +158,70 @@ def post_comment(pr, message: str):
         console.print(f"[red]❌ Failed to post: {e}[/red]")
 
 
+def post_json_as_comment(pr, title: str, data: Dict[str, Any], summary_text: str = ""):
+    """
+    Post JSON data as a collapsible details comment in PR
+
+    Args:
+        pr: Pull request object
+        title: Title for the comment section
+        data: JSON data to post
+        summary_text: Optional summary text to show before JSON
+    """
+    # Create collapsible JSON section
+    json_str = json.dumps(data, indent=2)
+
+    comment = f"""## {title}
+
+{summary_text}
+
+<details>
+<summary>📋 View Full JSON Results (click to expand)</summary>
+
+```json
+{json_str}
+```
+
+</details>
+"""
+
+    post_comment(pr, comment)
+    console.print(f"[green]✅ Posted JSON data as PR comment[/green]")
+
+
+def get_json_from_pr_comments(pr, title_pattern: str) -> Dict[str, Any]:
+    """
+    Extract JSON data from PR comments by searching for a specific title
+
+    Args:
+        pr: Pull request object
+        title_pattern: Pattern to match in comment title (e.g., "Analysis Results")
+
+    Returns:
+        Parsed JSON data or None if not found
+    """
+    console.print(f"[dim]Looking for JSON with title pattern: {title_pattern}[/dim]")
+
+    for comment in pr.get_issue_comments():
+        comment_body = comment.body
+        if title_pattern in comment_body and "```json" in comment_body:
+            # Extract JSON from code block
+            try:
+                json_start = comment_body.find("```json") + 7
+                json_end = comment_body.find("```", json_start)
+                if json_end > json_start:
+                    json_str = comment_body[json_start:json_end].strip()
+                    data = json.loads(json_str)
+                    console.print(f"[green]✅ Found JSON data in PR comments[/green]")
+                    return data
+            except Exception as e:
+                console.print(f"[yellow]⚠️  Failed to parse JSON from comment: {e}[/yellow]")
+                continue
+
+    console.print(f"[red]❌ No JSON found with pattern '{title_pattern}'[/red]")
+    return None
+
+
 def get_pr_files(pr) -> list:
     """Get changed files"""
     return [f.filename for f in pr.get_files()]
@@ -327,13 +391,17 @@ Check workflow logs.
 """
     
     post_comment(pr, result_comment)
-    
-    # Save results
-    results_dir = Path(".pr-reviewer/results")
-    results_dir.mkdir(parents=True, exist_ok=True)
-    with open(results_dir / "summary_result.json", "w") as f:
-        json.dump(summary_result, f, indent=2)
-    
+
+    # Post full JSON data as collapsible comment in PR thread
+    summary_for_json = f"""**Summary Statistics:**
+- Total Files: {metadata.get('total_files_changed', 0)}
+- Languages: {languages_str}
+- Total Issues: {total_issues}
+- Risk Level: {risk_level}
+
+"""
+    post_json_as_comment(pr, "📊 Analysis Results (Raw JSON)", summary_result, summary_for_json)
+
     console.print("[green]✅ Analysis complete[/green]")
     return summary_result
 
@@ -346,14 +414,12 @@ async def run_proceed(pr, repo, context: str = ""):
 
 ⏳ Analyzing issues...
 """)
-    
-    results_dir = Path(".pr-reviewer/results")
-    try:
-        with open(results_dir / "summary_result.json", "r") as f:
-            summary_result = json.load(f)
-    except FileNotFoundError:
-        console.print("[red]❌ Summary not found[/red]")
-        post_comment(pr, "❌ **Error:** Run analysis first")
+
+    # Get summary from PR comments instead of file
+    summary_result = get_json_from_pr_comments(pr, "Analysis Results (Raw JSON)")
+    if not summary_result:
+        console.print("[red]❌ Summary not found in PR comments[/red]")
+        post_comment(pr, "❌ **Error:** Run analysis first (`@pr-reviewer analyze`)")
         return
     
     pr_info = get_pr_info(pr)
@@ -425,10 +491,17 @@ async def run_proceed(pr, repo, context: str = ""):
 """
     
     post_comment(pr, plan_comment)
-    
-    with open(results_dir / "plan_result.json", "w") as f:
-        json.dump(plan_result, f, indent=2)
-    
+
+    # Post full plan JSON as collapsible comment
+    plan_summary = f"""**Plan Summary:**
+- Total Fixes: {total_fixes}
+- Estimated Time: {estimated_time} minutes
+- Critical: {by_priority.get('critical', 0)}, High: {by_priority.get('high', 0)}, Medium: {by_priority.get('medium', 0)}
+
+*This JSON data is posted here for easy access from the PR thread.*
+"""
+    post_json_as_comment(pr, "📋 Remediation Plan (Raw JSON)", plan_result, plan_summary)
+
     console.print("[green]✅ Plan created[/green]")
     return plan_result
 
@@ -443,14 +516,12 @@ async def run_execute(pr, repo):
 
 This may take 10-15 minutes.
 """)
-    
-    results_dir = Path(".pr-reviewer/results")
-    try:
-        with open(results_dir / "plan_result.json", "r") as f:
-            plan_result = json.load(f)
-    except FileNotFoundError:
-        console.print("[red]❌ Plan not found[/red]")
-        post_comment(pr, "❌ **Error:** Create plan first")
+
+    # Get plan from PR comments instead of file
+    plan_result = get_json_from_pr_comments(pr, "Remediation Plan (Raw JSON)")
+    if not plan_result:
+        console.print("[red]❌ Plan not found in PR comments[/red]")
+        post_comment(pr, "❌ **Error:** Create plan first (`@pr-reviewer proceed`)")
         return
     
     pr_info = get_pr_info(pr)
@@ -517,12 +588,19 @@ This may take 10-15 minutes.
 """
     
     post_comment(pr, execute_comment)
-    
-    with open(results_dir / "execution_result.json", "w") as f:
-        json.dump(execution_result, f, indent=2)
-    
+
+    # Post full execution JSON as collapsible comment
+    exec_summary = f"""**Execution Summary:**
+- Total Fixes Attempted: {total_fixes}
+- Successful: {successful_count}
+- Failed: {failed_count}
+
+*This JSON data is posted here for verification and audit purposes.*
+"""
+    post_json_as_comment(pr, "⚙️ Execution Results (Raw JSON)", execution_result, exec_summary)
+
     console.print("[green]✅ Execution complete[/green]")
-    
+
     await run_verify(pr, repo)
     return execution_result
 
@@ -530,17 +608,15 @@ This may take 10-15 minutes.
 async def run_verify(pr, repo):
     """Verify using Verifier agent"""
     console.print(Panel.fit("✅ VERIFYING", style="bold magenta"))
-    
-    results_dir = Path(".pr-reviewer/results")
-    try:
-        with open(results_dir / "summary_result.json", "r") as f:
-            summary_result = json.load(f)
-        with open(results_dir / "plan_result.json", "r") as f:
-            plan_result = json.load(f)
-        with open(results_dir / "execution_result.json", "r") as f:
-            execution_result = json.load(f)
-    except FileNotFoundError as e:
-        console.print(f"[red]❌ Results missing: {e}[/red]")
+
+    # Get all results from PR comments instead of files
+    summary_result = get_json_from_pr_comments(pr, "Analysis Results (Raw JSON)")
+    plan_result = get_json_from_pr_comments(pr, "Remediation Plan (Raw JSON)")
+    execution_result = get_json_from_pr_comments(pr, "Execution Results (Raw JSON)")
+
+    if not all([summary_result, plan_result, execution_result]):
+        console.print("[red]❌ Missing results in PR comments[/red]")
+        post_comment(pr, "❌ **Error:** Run analysis, planning, and execution first")
         return
     
     pr_info = get_pr_info(pr)
@@ -619,10 +695,17 @@ async def run_verify(pr, repo):
 🚦 Review issues and fix manually or modify plan
 """
         post_comment(pr, verify_comment)
-    
-    with open(results_dir / "verification_result.json", "w") as f:
-        json.dump(verification_result, f, indent=2)
-    
+
+    # Post full verification JSON as collapsible comment
+    verify_summary = f"""**Verification Summary:**
+- Tests Passed: {verification_result.get('tests_passed', 'N/A')}
+- Security Issues Resolved: {verification_result.get('security_issues_resolved', 'N/A')}
+- Ready to Merge: {verification_result.get('ready_to_merge', False)}
+
+*This JSON data provides the complete verification results for audit.*
+"""
+    post_json_as_comment(pr, "✅ Verification Results (Raw JSON)", verification_result, verify_summary)
+
     console.print("[green]✅ Verification complete[/green]")
     return verification_result
 
@@ -635,16 +718,17 @@ async def run_merge(pr, repo):
 
 ⏳ Verifying...
 """)
-    
-    results_dir = Path(".pr-reviewer/results")
-    try:
-        with open(results_dir / "verification_result.json", "r") as f:
-            verification_result = json.load(f)
-    except FileNotFoundError:
-        console.print("[yellow]⚠️ No verification, running...[/yellow]")
+
+    # Get verification from PR comments instead of file
+    verification_result = get_json_from_pr_comments(pr, "Verification Results (Raw JSON)")
+    if not verification_result:
+        console.print("[yellow]⚠️ No verification found, running...[/yellow]")
         await run_verify(pr, repo)
-        with open(results_dir / "verification_result.json", "r") as f:
-            verification_result = json.load(f)
+        verification_result = get_json_from_pr_comments(pr, "Verification Results (Raw JSON)")
+        if not verification_result:
+            console.print("[red]❌ Verification failed[/red]")
+            post_comment(pr, "❌ **Error:** Verification failed")
+            return
     
     ready = verification_result.get("ready_to_merge", False)
     

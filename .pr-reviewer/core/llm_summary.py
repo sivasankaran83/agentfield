@@ -15,13 +15,13 @@ class LLMSummaryGenerator:
     Generates comprehensive PR summaries using Claude AI
     Analyzes git diffs, commit messages, and code changes
     """
-    
+
     def __init__(self):
         """Initialize with Anthropic API"""
         api_key = os.getenv("ANTHROPIC_API_KEY")
         if not api_key:
             raise ValueError("ANTHROPIC_API_KEY environment variable not set")
-        
+
         self.client = Anthropic(api_key=api_key)
         self.model = "claude-sonnet-4-20250514"
     
@@ -208,10 +208,10 @@ Return ONLY valid JSON, no other text.
                     {"role": "user", "content": prompt}
                 ]
             )
-            
+
             # Extract JSON from response
             content = response.content[0].text
-            
+
             # Parse JSON
             try:
                 summary = json.loads(content)
@@ -262,7 +262,7 @@ Summarize these commit messages in ONE sentence:
 
 Return ONLY the summary sentence, nothing else.
 """
-            
+
             response = self.client.messages.create(
                 model=self.model,
                 max_tokens=100,
@@ -270,7 +270,7 @@ Return ONLY the summary sentence, nothing else.
                     {"role": "user", "content": prompt}
                 ]
             )
-            
+
             return response.content[0].text.strip()
         
         except Exception as e:
@@ -306,7 +306,7 @@ Provide analysis in JSON:
 
 Return ONLY valid JSON.
 """
-            
+
             response = self.client.messages.create(
                 model=self.model,
                 max_tokens=500,
@@ -314,7 +314,7 @@ Return ONLY valid JSON.
                     {"role": "user", "content": prompt}
                 ]
             )
-            
+
             content = response.content[0].text
             return json.loads(content)
         

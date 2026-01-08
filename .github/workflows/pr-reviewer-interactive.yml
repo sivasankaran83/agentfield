@@ -29,7 +29,7 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref || github.head_ref }}
       
-      - name: 🐍 Setup Python
+      - name: 👩🏻‍💻 Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -54,7 +54,7 @@ jobs:
             pip install -r .pr-reviewer/requirements.txt
           fi
       
-      - name: 🏗️ Install AgentField
+      - name: ☸️ Install AgentField
         run: |
             echo "📥 Installing AgentField CLI.."
             curl -sSf https://agentfield.ai/get | bash
@@ -97,7 +97,7 @@ jobs:
         env:
           AGENTFIELD_SERVER: http://localhost:8080
       
-      - name: 🤖 Start PR Reviewer Agents
+      - name: 👷🏽‍♂️ Start PR Reviewer Agents
         run: |
           echo "Current workspace: ${{ github.workspace }}"
           cd ${{ github.workspace }}
@@ -215,7 +215,7 @@ jobs:
             echo "context=" >> $GITHUB_OUTPUT
           fi
       
-      - name: 🔬 Run PR Review Workflow
+      - name: ⚙️ Run PR Review Workflow
         if: steps.parse_command.outputs.action != 'none'
         working-directory: .pr-reviewer
         run: |

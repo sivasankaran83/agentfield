@@ -7,6 +7,17 @@ from agentfield import Agent
 from typing import Dict, List, Optional, Any
 import os
 import json
+import sys
+from pathlib import Path
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from schemas import (
+    OverallIssueStrategy,
+    ExecutionPlan,
+    PlanValidationResult
+)
+from utils.llm_sanitizer import sanitize_llm_output
 
 # Initialize Planner Agent
 app = Agent(
@@ -236,10 +247,13 @@ async def create_remediation_plan(
         "focus_areas": ["priority 1", "priority 2", "priority 3"]
     }}
     """
-    # Pass pydantic schema
-    # OpenRouter
-    issue_strategies = await app.ai(issue_analysis_prompt)
-    
+    # Use Pydantic schema for structured response
+    issue_strategies_raw = await app.ai(
+        user=issue_analysis_prompt,
+        schema=OverallIssueStrategy
+    )
+    issue_strategies = sanitize_llm_output(issue_strategies_raw)
+
     # Step 3: Create fix items for each issue
     fix_items = []
     
@@ -336,8 +350,13 @@ async def create_remediation_plan(
     }}
     """
     
-    execution_plan = await app.ai(execution_plan_prompt)
-    
+    # Use Pydantic schema for structured response
+    execution_plan_raw = await app.ai(
+        user=execution_plan_prompt,
+        schema=ExecutionPlan
+    )
+    execution_plan = sanitize_llm_output(execution_plan_raw)
+
     # Step 5: Generate human-readable summary
     summary_prompt = f"""
     Create a concise summary of this remediation plan for human review:
@@ -357,8 +376,10 @@ async def create_remediation_plan(
     Be direct, actionable, and specific.
     """
     
-    human_summary = await app.ai(summary_prompt)
-    
+    # Get text response for summary
+    human_summary_response = await app.ai(user=summary_prompt, schema=ExecutionPlan)
+    human_summary = sanitize_llm_output(human_summary_response)    
+
     # Step 6: Calculate statistics
     total_time = sum(fix['effort_minutes'] for fix in fix_items)
     automatable_count = len([f for f in fix_items if f.get('automatable', False)])
@@ -410,33 +431,35 @@ async def modify_plan(
     
     modification_prompt = f"""
     Modify this remediation plan based on human feedback:
-    
+
     Original Plan Summary:
     - Total fixes: {original_plan.get('total_fixes', 0)}
     - Critical: {original_plan.get('by_priority', {}).get('critical', 0)}
     - Estimated time: {original_plan.get('estimated_total_time', 0)} minutes
-    
+
     Original Fix Items:
     {json.dumps(original_plan.get('fix_items', [])[:10], indent=2)}
-    
+
     Human Feedback:
     {modifications}
-    
+
     Apply the requested modifications. Common requests:
     - "Skip linting fixes" - remove code_quality items
     - "Focus on security" - prioritize security items
     - "Only critical issues" - filter to critical priority only
     - "Add X" - include additional considerations
-    
+
     Return the complete modified plan in the same format, ensuring:
     1. All requested changes are applied
     2. Plan remains coherent
     3. Priorities are recalculated if needed
     4. Summary is updated
     """
-    
-    modified_plan = await app.ai(modification_prompt)
-    
+
+    # Get text response for modification feedback
+    modified_plan_response = await app.ai(user=modification_prompt, schema=ExecutionPlan)
+    modified_plan = sanitize_llm_output(modified_plan_response)
+
     # Ensure modified plan has required structure
     if isinstance(modified_plan, dict):
         modified_plan['modified'] = True
@@ -460,9 +483,9 @@ async def validate_plan(plan: Dict) -> Dict:
     
     validation_prompt = f"""
     Validate this remediation plan for completeness and feasibility:
-    
+
     {json.dumps(plan, indent=2)}
-    
+
     Check for:
     1. All critical issues are addressed
     2. Execution order is logical (no circular dependencies)
@@ -470,7 +493,7 @@ async def validate_plan(plan: Dict) -> Dict:
     4. Adequate testing/validation steps
     5. Clear rollback strategy
     6. Human review points are appropriate
-    
+
     Return as JSON:
     {{
         "valid": true/false,
@@ -488,9 +511,14 @@ async def validate_plan(plan: Dict) -> Dict:
         "recommendation": "approve|revise|reject"
     }}
     """
-    
-    validation_results = await app.ai(validation_prompt)
-    
+
+    # Use Pydantic schema for structured validation results
+    validation_results_raw = await app.ai(
+        user=validation_prompt,
+        schema=PlanValidationResult
+    )
+    validation_results = sanitize_llm_output(validation_results_raw)
+
     return validation_results
 
 

@@ -377,9 +377,8 @@ async def create_remediation_plan(
     """
     
     # Get text response for summary
-    human_summary_response = await app.ai(user=summary_prompt)
-    human_summary_raw = human_summary_response.text if hasattr(human_summary_response, 'text') else str(human_summary_response)
-    human_summary = sanitize_llm_output(human_summary_raw)
+    human_summary_response = await app.ai(user=summary_prompt, schema=ExecutionPlan)
+    human_summary = sanitize_llm_output(human_summary_response)    
 
     # Step 6: Calculate statistics
     total_time = sum(fix['effort_minutes'] for fix in fix_items)
@@ -458,9 +457,8 @@ async def modify_plan(
     """
 
     # Get text response for modification feedback
-    modified_plan_response = await app.ai(user=modification_prompt)
-    modified_plan_raw = modified_plan_response.text if hasattr(modified_plan_response, 'text') else str(modified_plan_response)
-    modified_plan = sanitize_llm_output(modified_plan_raw)
+    modified_plan_response = await app.ai(user=modification_prompt, schema=ExecutionPlan)
+    modified_plan = sanitize_llm_output(modified_plan_response)
 
     # Ensure modified plan has required structure
     if isinstance(modified_plan, dict):

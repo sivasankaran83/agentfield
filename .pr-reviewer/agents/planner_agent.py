@@ -3,7 +3,7 @@ Planner Agent - Final Production Version
 Creates remediation plans based on analysis results with human oversight
 """
 
-from agentfield import Agent
+from agentfield import AIConfig, Agent
 from typing import Dict, List, Optional, Any
 import os
 import json
@@ -22,7 +22,11 @@ from utils.llm_sanitizer import sanitize_llm_output
 # Initialize Planner Agent
 app = Agent(
     node_id="pr-reviewer-planner",
-    agentfield_url=os.getenv("AGENTFIELD_SERVER", "http://localhost:8080")
+    agentfield_url=os.getenv("AGENTFIELD_SERVER", "http://localhost:8080"),
+    ai_config=AIConfig(
+        model=os.getenv("AI_MODEL", "openrouter/anthropic/claude-sonnet-4.5"),
+        api_key=os.getenv("OPENROUTER_API_KEY"),  # or set OPENAI_API_KEY env var
+    )
 )
 
 

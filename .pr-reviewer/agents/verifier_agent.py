@@ -3,7 +3,7 @@ Verifier Agent - Final Production Version
 Verifies that fixes are correct and complete with comprehensive checking
 """
 
-from agentfield import Agent
+from agentfield import AIConfig, Agent
 from typing import Dict, List, Optional
 import os
 import subprocess
@@ -23,9 +23,12 @@ from utils.llm_sanitizer import sanitize_llm_output
 # Initialize Verifier Agent
 app = Agent(
     node_id="pr-reviewer-verifier",
-    agentfield_url=os.getenv("AGENTFIELD_SERVER", "http://localhost:8080")
+    agentfield_url=os.getenv("AGENTFIELD_SERVER", "http://localhost:8080"),
+    ai_config=AIConfig(
+        model=os.getenv("AI_MODEL", "openrouter/anthropic/claude-sonnet-4.5"),
+        api_key=os.getenv("OPENROUTER_API_KEY"),  # or set OPENAI_API_KEY env var
+    )
 )
-
 
 @app.skill()
 def run_tests(language: str, test_path: Optional[str] = None) -> Dict:

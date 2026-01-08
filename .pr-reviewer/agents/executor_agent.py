@@ -3,7 +3,7 @@ Executor Agent - Final Production Version
 Executes remediation plans and applies fixes with human oversight
 """
 
-from agentfield import Agent
+from agentfield import AIConfig, Agent
 from typing import Dict, List, Optional
 import os
 import subprocess
@@ -25,7 +25,11 @@ from utils.llm_sanitizer import sanitize_llm_output
 # Initialize Executor Agent
 app = Agent(
     node_id="pr-reviewer-executor",
-    agentfield_url=os.getenv("AGENTFIELD_SERVER", "http://localhost:8080")
+    agentfield_url=os.getenv("AGENTFIELD_SERVER", "http://localhost:8080"),
+    ai_config=AIConfig(
+        model=os.getenv("AI_MODEL", "openrouter/anthropic/claude-sonnet-4.5"),
+        api_key=os.getenv("OPENROUTER_API_KEY"),  # or set OPENAI_API_KEY env var
+    )
 )
 
 

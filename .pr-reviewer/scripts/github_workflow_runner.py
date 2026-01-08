@@ -399,7 +399,6 @@ Check workflow logs.
 - Total Issues: {total_issues}
 - Risk Level: {risk_level}
 
-*This JSON data is posted here instead of being saved as an artifact. You can reference it from this PR thread.*
 """
     post_json_as_comment(pr, "📊 Analysis Results (Raw JSON)", summary_result, summary_for_json)
 

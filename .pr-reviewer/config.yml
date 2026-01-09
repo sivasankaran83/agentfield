@@ -83,26 +83,100 @@ code_analysis:
 architecture:
   # SOLID principles checking
   check_solid: true
-  
+
   # Anti-pattern detection
   detect_god_objects: true
   detect_spaghetti_code: true
   detect_dead_code: true
   detect_duplicate_code: true
-  
+
   # Complexity thresholds
   max_cyclomatic_complexity: 10
   max_cognitive_complexity: 15
-  
+
   # Class/Method thresholds
   max_class_methods: 20
   max_class_fields: 15
   max_class_dependencies: 10
   max_method_lines: 50
   max_method_parameters: 5
-  
+
   # Inheritance depth
   max_inheritance_depth: 4
+
+# Complexity Analysis Tools
+complexity_tools:
+  # Auto-install missing tools
+  auto_install: false  # Set to true to automatically install missing tools
+
+  # Tool configurations by language
+  python:
+    tools:
+      - radon
+      - mccabe
+    install_commands:
+      radon: "pip install radon"
+      mccabe: "pip install mccabe"
+
+  go:
+    tools:
+      - gocyclo
+    install_commands:
+      gocyclo: "go install github.com/fzipp/gocyclo/cmd/gocyclo@latest"
+
+  javascript:
+    tools:
+      - eslint
+      - plato
+    install_commands:
+      eslint: "npm install -g eslint"
+      plato: "npm install -g plato"
+
+  typescript:
+    tools:
+      - eslint
+      - plato
+    install_commands:
+      eslint: "npm install -g eslint"
+      plato: "npm install -g plato"
+
+  java:
+    tools:
+      - pmd
+      - checkstyle
+    install_commands:
+      pmd: "Download from https://pmd.github.io/"
+      checkstyle: "Download from https://checkstyle.org/"
+
+  ruby:
+    tools:
+      - rubocop
+    install_commands:
+      rubocop: "gem install rubocop"
+
+  php:
+    tools:
+      - phpmd
+    install_commands:
+      phpmd: "composer global require phpmd/phpmd"
+
+  csharp:
+    tools:
+      - cyclonedx
+    install_commands:
+      cyclonedx: "dotnet tool install --global CycloneDX"
+
+  cpp:
+    tools:
+      - lizard
+    install_commands:
+      lizard: "pip install lizard"
+
+  c:
+    tools:
+      - lizard
+    install_commands:
+      lizard: "pip install lizard"
 
 # Security Analysis
 security:

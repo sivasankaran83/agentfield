@@ -27,17 +27,47 @@ class GitUtils:
             List of changed file paths
         """
         try:
-            result = subprocess.run(
-                ["git", "diff", "--name-only", f"{base_branch}...{head_branch}"],
-                capture_output=True,
-                text=True,
-                check=True,
-                timeout=30
-            )
+            # In GitHub Actions, the base branch might not be checked out locally
+            # Try to fetch it first if we're in a CI environment
+            try:
+                subprocess.run(
+                    ["git", "fetch", "origin", f"{base_branch}:{base_branch}"],
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+            except subprocess.CalledProcessError:
+                # Branch might already exist or fetch failed, continue anyway
+                logger.debug(f"Could not fetch {base_branch}, it may already exist locally")
+                pass
+
+            # Try with origin/ prefix first (works in CI environments)
+            try:
+                result = subprocess.run(
+                    ["git", "diff", "--name-only", f"origin/{base_branch}...{head_branch}"],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    timeout=30
+                )
+            except subprocess.CalledProcessError:
+                # Fall back to local branch reference
+                logger.debug(f"Trying local branch reference instead of origin/{base_branch}")
+                result = subprocess.run(
+                    ["git", "diff", "--name-only", f"{base_branch}...{head_branch}"],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    timeout=30
+                )
 
             files = [f.strip() for f in result.stdout.split('\n') if f.strip()]
             return files
 
+        except subprocess.CalledProcessError as e:
+            error_msg = f"Git command failed (exit {e.returncode}): {e.stderr.strip() if e.stderr else 'no stderr'}"
+            logger.error(f"Error getting changed files: {error_msg}")
+            return []
         except Exception as e:
             logger.error(f"Error getting changed files: {e}")
             return []
@@ -46,14 +76,42 @@ class GitUtils:
     def get_git_diff(base_branch: str = "main", head_branch: str = "HEAD") -> str:
         """Get git diff between branches"""
         try:
-            result = subprocess.run(
-                ["git", "diff", f"{base_branch}...{head_branch}"],
-                capture_output=True,
-                text=True,
-                check=True,
-                timeout=30
-            )
+            # Try to fetch base branch if needed
+            try:
+                subprocess.run(
+                    ["git", "fetch", "origin", f"{base_branch}:{base_branch}"],
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+            except subprocess.CalledProcessError:
+                logger.debug(f"Could not fetch {base_branch}, it may already exist locally")
+                pass
+
+            # Try with origin/ prefix first
+            try:
+                result = subprocess.run(
+                    ["git", "diff", f"origin/{base_branch}...{head_branch}"],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    timeout=30
+                )
+            except subprocess.CalledProcessError:
+                # Fall back to local branch reference
+                result = subprocess.run(
+                    ["git", "diff", f"{base_branch}...{head_branch}"],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    timeout=30
+                )
+
             return result.stdout
+        except subprocess.CalledProcessError as e:
+            error_msg = f"Git command failed (exit {e.returncode}): {e.stderr.strip() if e.stderr else 'no stderr'}"
+            logger.error(f"Error getting git diff: {error_msg}")
+            return f"Error: {error_msg}"
         except Exception as e:
             logger.error(f"Error getting git diff: {e}")
             return f"Error: {e}"
@@ -62,15 +120,43 @@ class GitUtils:
     def get_commit_messages(base_branch: str = "main", head_branch: str = "HEAD") -> List[str]:
         """Get commit messages between branches"""
         try:
-            result = subprocess.run(
-                ["git", "log", f"{base_branch}..{head_branch}", "--pretty=format:%s"],
-                capture_output=True,
-                text=True,
-                check=True,
-                timeout=30
-            )
+            # Try to fetch base branch if needed
+            try:
+                subprocess.run(
+                    ["git", "fetch", "origin", f"{base_branch}:{base_branch}"],
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+            except subprocess.CalledProcessError:
+                logger.debug(f"Could not fetch {base_branch}, it may already exist locally")
+                pass
+
+            # Try with origin/ prefix first
+            try:
+                result = subprocess.run(
+                    ["git", "log", f"origin/{base_branch}..{head_branch}", "--pretty=format:%s"],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    timeout=30
+                )
+            except subprocess.CalledProcessError:
+                # Fall back to local branch reference
+                result = subprocess.run(
+                    ["git", "log", f"{base_branch}..{head_branch}", "--pretty=format:%s"],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    timeout=30
+                )
+
             messages = [msg.strip() for msg in result.stdout.split('\n') if msg.strip()]
             return messages
+        except subprocess.CalledProcessError as e:
+            error_msg = f"Git command failed (exit {e.returncode}): {e.stderr.strip() if e.stderr else 'no stderr'}"
+            logger.error(f"Error getting commit messages: {error_msg}")
+            return [f"Error: {error_msg}"]
         except Exception as e:
             logger.error(f"Error getting commit messages: {e}")
             return [f"Error: {e}"]

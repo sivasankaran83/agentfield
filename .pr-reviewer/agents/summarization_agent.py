@@ -34,19 +34,19 @@ app = Agent(
 
 
 @app.skill()
-def get_changed_files(base_branch: str = "main", head_branch: str = "HEAD") -> List[str]:
+async def get_changed_files(base_branch: str = "main", head_branch: str = "HEAD") -> List[str]:
     """
     Get list of changed files between branches
-    
+
     Args:
         base_branch: Base branch for comparison
         head_branch: Head branch (PR branch)
-        
+
     Returns:
         List of changed file paths
     """
     git_utils = GitUtils()
-    return git_utils.get_changed_files(base_branch, head_branch)
+    return await git_utils.get_changed_files_async(base_branch, head_branch)
 
 
 @app.skill()
@@ -412,7 +412,7 @@ def run_language_analysis(language: str, files: List[str]) -> Dict:
 
 
 @app.skill()
-def get_git_diff(base_branch: str = "main", head_branch: str = "HEAD") -> str:
+async def get_git_diff(base_branch: str = "main", head_branch: str = "HEAD") -> str:
     """
     Get git diff between branches
 
@@ -423,21 +423,12 @@ def get_git_diff(base_branch: str = "main", head_branch: str = "HEAD") -> str:
     Returns:
         Git diff output
     """
-    try:
-        result = subprocess.run(
-            ["git", "diff", f"{base_branch}...{head_branch}"],
-            capture_output=True,
-            text=True,
-            check=True,
-            timeout=30
-        )
-        return result.stdout
-    except Exception as e:
-        return f"Error getting git diff: {e}"
+    git_utils = GitUtils()
+    return await git_utils.get_git_diff_async(base_branch, head_branch)
 
 
 @app.skill()
-def get_commit_messages(base_branch: str = "main", head_branch: str = "HEAD") -> List[str]:
+async def get_commit_messages(base_branch: str = "main", head_branch: str = "HEAD") -> List[str]:
     """
     Get commit messages in the PR
 
@@ -448,18 +439,8 @@ def get_commit_messages(base_branch: str = "main", head_branch: str = "HEAD") ->
     Returns:
         List of commit messages
     """
-    try:
-        result = subprocess.run(
-            ["git", "log", f"{base_branch}..{head_branch}", "--pretty=format:%s"],
-            capture_output=True,
-            text=True,
-            check=True,
-            timeout=30
-        )
-        messages = [msg.strip() for msg in result.stdout.split('\n') if msg.strip()]
-        return messages
-    except Exception as e:
-        return [f"Error getting commits: {e}"]
+    git_utils = GitUtils()
+    return await git_utils.get_commit_messages_async(base_branch, head_branch)
 
 
 @app.skill()
@@ -506,8 +487,8 @@ async def generate_comprehensive_summary(
     """
 
     # Get git information
-    git_diff = get_git_diff(base_branch, head_branch)
-    commit_messages = get_commit_messages(base_branch, head_branch)
+    git_diff = await get_git_diff(base_branch, head_branch)
+    commit_messages = await get_commit_messages(base_branch, head_branch)
     file_stats = get_changed_file_stats(base_branch, head_branch)
 
     # Truncate diff if too long
@@ -987,18 +968,18 @@ async def analyze_pr(
     """
     
     print(f"Analyzing PR #{pr_number}: {base_branch}...{head_branch}")
-    
+
     # Step 1: Get changed files
-    changed_files = get_changed_files(base_branch, head_branch)
-    
+    changed_files = await get_changed_files(base_branch, head_branch)
+
     if not changed_files:
         return {
             "status": "error",
             "message": "No changed files found"
         }
-    
+
     print(f"Found {len(changed_files)} changed files")
-    
+
     # Step 2: Detect languages
     language_files = detect_languages(changed_files)
     

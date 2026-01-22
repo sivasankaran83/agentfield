@@ -4,6 +4,7 @@ Helper functions for git operations and GitHub PR interactions
 """
 
 import subprocess
+import asyncio
 import json
 import logging
 from typing import List, Dict, Any, Optional
@@ -13,6 +14,72 @@ logger = logging.getLogger(__name__)
 
 class GitUtils:
     """Utility class for git operations"""
+
+    @staticmethod
+    async def get_changed_files_async(base_branch: str = "main", head_branch: str = "HEAD") -> List[str]:
+        """
+        Get list of changed files between branches (async version)
+
+        Args:
+            base_branch: Base branch
+            head_branch: Head branch
+
+        Returns:
+            List of changed file paths
+        """
+        try:
+            # In GitHub Actions, the base branch might not be checked out locally
+            # Try to fetch it first if we're in a CI environment
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    "git", "fetch", "origin", f"{base_branch}:{base_branch}",
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                await asyncio.wait_for(proc.wait(), timeout=30)
+            except (asyncio.TimeoutError, Exception):
+                # Branch might already exist or fetch failed, continue anyway
+                logger.debug(f"Could not fetch {base_branch}, it may already exist locally")
+                pass
+
+            # Try with origin/ prefix first (works in CI environments)
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    "git", "diff", "--name-only", f"origin/{base_branch}...{head_branch}",
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
+
+                if proc.returncode != 0:
+                    raise subprocess.CalledProcessError(proc.returncode, "git diff", stderr=stderr)
+
+                files = [f.strip() for f in stdout.decode().split('\n') if f.strip()]
+                return files
+
+            except (subprocess.CalledProcessError, asyncio.TimeoutError):
+                # Fall back to local branch reference
+                logger.debug(f"Trying local branch reference instead of origin/{base_branch}")
+                proc = await asyncio.create_subprocess_exec(
+                    "git", "diff", "--name-only", f"{base_branch}...{head_branch}",
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
+
+                if proc.returncode != 0:
+                    raise subprocess.CalledProcessError(proc.returncode, "git diff", stderr=stderr)
+
+                files = [f.strip() for f in stdout.decode().split('\n') if f.strip()]
+                return files
+
+        except subprocess.CalledProcessError as e:
+            error_msg = f"Git command failed (exit {e.returncode}): {e.stderr.decode().strip() if e.stderr else 'no stderr'}"
+            logger.error(f"Error getting changed files: {error_msg}")
+            return []
+        except Exception as e:
+            logger.error(f"Error getting changed files: {e}")
+            return []
 
     @staticmethod
     def get_changed_files(base_branch: str = "main", head_branch: str = "HEAD") -> List[str]:
@@ -73,6 +140,58 @@ class GitUtils:
             return []
 
     @staticmethod
+    async def get_git_diff_async(base_branch: str = "main", head_branch: str = "HEAD") -> str:
+        """Get git diff between branches (async version)"""
+        try:
+            # Try to fetch base branch if needed
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    "git", "fetch", "origin", f"{base_branch}:{base_branch}",
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                await asyncio.wait_for(proc.wait(), timeout=30)
+            except (asyncio.TimeoutError, Exception):
+                logger.debug(f"Could not fetch {base_branch}, it may already exist locally")
+                pass
+
+            # Try with origin/ prefix first
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    "git", "diff", f"origin/{base_branch}...{head_branch}",
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
+
+                if proc.returncode != 0:
+                    raise subprocess.CalledProcessError(proc.returncode, "git diff", stderr=stderr)
+
+                return stdout.decode()
+
+            except (subprocess.CalledProcessError, asyncio.TimeoutError):
+                # Fall back to local branch reference
+                proc = await asyncio.create_subprocess_exec(
+                    "git", "diff", f"{base_branch}...{head_branch}",
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
+
+                if proc.returncode != 0:
+                    raise subprocess.CalledProcessError(proc.returncode, "git diff", stderr=stderr)
+
+                return stdout.decode()
+
+        except subprocess.CalledProcessError as e:
+            error_msg = f"Git command failed (exit {e.returncode}): {e.stderr.decode().strip() if e.stderr else 'no stderr'}"
+            logger.error(f"Error getting git diff: {error_msg}")
+            return f"Error: {error_msg}"
+        except Exception as e:
+            logger.error(f"Error getting git diff: {e}")
+            return f"Error: {e}"
+
+    @staticmethod
     def get_git_diff(base_branch: str = "main", head_branch: str = "HEAD") -> str:
         """Get git diff between branches"""
         try:
@@ -115,6 +234,60 @@ class GitUtils:
         except Exception as e:
             logger.error(f"Error getting git diff: {e}")
             return f"Error: {e}"
+
+    @staticmethod
+    async def get_commit_messages_async(base_branch: str = "main", head_branch: str = "HEAD") -> List[str]:
+        """Get commit messages between branches (async version)"""
+        try:
+            # Try to fetch base branch if needed
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    "git", "fetch", "origin", f"{base_branch}:{base_branch}",
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                await asyncio.wait_for(proc.wait(), timeout=30)
+            except (asyncio.TimeoutError, Exception):
+                logger.debug(f"Could not fetch {base_branch}, it may already exist locally")
+                pass
+
+            # Try with origin/ prefix first
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    "git", "log", f"origin/{base_branch}..{head_branch}", "--pretty=format:%s",
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
+
+                if proc.returncode != 0:
+                    raise subprocess.CalledProcessError(proc.returncode, "git log", stderr=stderr)
+
+                messages = [msg.strip() for msg in stdout.decode().split('\n') if msg.strip()]
+                return messages
+
+            except (subprocess.CalledProcessError, asyncio.TimeoutError):
+                # Fall back to local branch reference
+                proc = await asyncio.create_subprocess_exec(
+                    "git", "log", f"{base_branch}..{head_branch}", "--pretty=format:%s",
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
+
+                if proc.returncode != 0:
+                    raise subprocess.CalledProcessError(proc.returncode, "git log", stderr=stderr)
+
+                messages = [msg.strip() for msg in stdout.decode().split('\n') if msg.strip()]
+                return messages
+
+        except subprocess.CalledProcessError as e:
+            error_msg = f"Git command failed (exit {e.returncode}): {e.stderr.decode().strip() if e.stderr else 'no stderr'}"
+            logger.error(f"Error getting commit messages: {error_msg}")
+            return [f"Error: {error_msg}"]
+        except Exception as e:
+            logger.error(f"Error getting commit messages: {e}")
+            return [f"Error: {e}"]
 
     @staticmethod
     def get_commit_messages(base_branch: str = "main", head_branch: str = "HEAD") -> List[str]:

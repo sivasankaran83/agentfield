@@ -54,6 +54,7 @@ click>=8.1.7                     # CLI framework
 aiofiles>=23.2.1                 # Async file I/O
 aiohttp>=3.9.0                   # Async HTTP
 requests>=2.31.0                 # HTTP library
+nest-asyncio>=1.6.0              # Nested event loop support
 
 # ----------------------------------------------------------------
 # Utilities

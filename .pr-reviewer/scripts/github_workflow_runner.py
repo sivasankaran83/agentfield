@@ -763,4 +763,19 @@ Check [workflow logs](https://github.com/{args.repo}/actions).
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        # Try to get the running event loop
+        loop = asyncio.get_running_loop()
+        # If we get here, a loop is already running
+        # We need to use nest_asyncio to allow nested event loops
+        try:
+            import nest_asyncio
+            nest_asyncio.apply()
+            asyncio.run(main())
+        except ImportError:
+            console.print("[red]Error: Event loop is already running but nest_asyncio is not installed[/red]")
+            console.print("[yellow]Install with: pip install nest-asyncio[/yellow]")
+            sys.exit(1)
+    except RuntimeError:
+        # No event loop is running, use asyncio.run() (Python 3.7+)
+        asyncio.run(main())

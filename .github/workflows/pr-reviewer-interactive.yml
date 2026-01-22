@@ -101,6 +101,7 @@ jobs:
           exit 1
         env:
           AGENTFIELD_SERVER: http://localhost:8080
+          AGENTFIELD_FEATURES_DID_ENABLED: "true"
       
       - name: 👷🏽‍♂️ Start PR Reviewer Agents
         run: |

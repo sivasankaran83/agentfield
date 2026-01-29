@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 <!-- changelog:entries -->
 
+## [0.1.22-rc.8] - 2026-01-29
+
+
+### Other
+
+- Enforce required fields in Pydantic schemas for overall issue strategy and execution plan (7a959cb)
+
+- Remove unused get_file_metadata function from AgentAI class (bc1fe07)
+
 ## [0.1.22-rc.7] - 2026-01-29
 
 

@@ -27,7 +27,7 @@ from schemas import (
     ArchitecturalAnalysis,
     ComprehensiveInsights
 )
-from utils.llm_sanitizer import sanitize_llm_output, parse_ai_json_response
+from utils.llm_sanitizer import sanitize_llm_output
 
 # Initialize Summarization Agent with AgentField
 app = Agent(
@@ -936,12 +936,12 @@ async def analyze_architectural_design(
     Focus on actionable feedback.
     """
 
-    # Request JSON format in prompt instead of using schema parameter
-    # This avoids "compiled grammar too large" error with complex nested schemas
+    # Use Pydantic schema for structured response
     architectural_analysis_raw = await app.ai(
-        user=architectural_prompt + "\n\nReturn ONLY valid JSON. No markdown code blocks, no explanations."
+        user=architectural_prompt,
+        schema=ArchitecturalAnalysis
     )
-    architectural_analysis = parse_ai_json_response(architectural_analysis_raw)
+    architectural_analysis = sanitize_llm_output(architectural_analysis_raw)
 
     return architectural_analysis
 
@@ -1022,12 +1022,12 @@ async def analyze_pr(
     }}
     """
 
-    # Request JSON format in prompt instead of using schema parameter
-    # This avoids "compiled grammar too large" error
+    # Use Pydantic schema for structured response
     analysis_plan_raw = await app.ai(
-        user=plan_prompt + "\n\nReturn ONLY valid JSON matching the format described above. No markdown, no explanations."
+        user=plan_prompt,
+        schema=AnalysisPlan
     )
-    analysis_plan = parse_ai_json_response(analysis_plan_raw)
+    analysis_plan = sanitize_llm_output(analysis_plan_raw)
 
     print(f"Analysis plan created: {analysis_plan}")
     
@@ -1102,12 +1102,12 @@ async def analyze_pr(
     }}
     """
 
-    # Request JSON format in prompt instead of using schema parameter
-    # This avoids "compiled grammar too large" error
+    # Use Pydantic schema for structured response
     ai_insights_raw = await app.ai(
-        user=combined_analysis_prompt + "\n\nReturn ONLY valid JSON. No markdown, no extra text."
+        user=combined_analysis_prompt,
+        schema=ComprehensiveInsights
     )
-    ai_insights = parse_ai_json_response(ai_insights_raw)
+    ai_insights = sanitize_llm_output(ai_insights_raw)
 
     # Step 9: Compile comprehensive summary
     comprehensive_summary = {

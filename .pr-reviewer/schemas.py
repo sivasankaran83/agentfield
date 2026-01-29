@@ -6,7 +6,7 @@ These schemas ensure proper JSON structure for AI responses and enable type-safe
 agent communication.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Dict, List, Optional, Literal, Any
 from datetime import datetime
 
@@ -17,6 +17,8 @@ from datetime import datetime
 
 class IssueStrategyAnalysis(BaseModel):
     """Analysis strategy for a specific issue category"""
+    model_config = ConfigDict(extra='forbid')
+
     root_cause: str = Field(..., description="Explanation of why these issues exist")
     strategy: str = Field(..., description="Fix approach for these issues")
     automatable: bool = Field(..., description="Whether fixes can be automated")
@@ -26,6 +28,8 @@ class IssueStrategyAnalysis(BaseModel):
 
 class OverallIssueStrategy(BaseModel):
     """Complete issue analysis strategy"""
+    model_config = ConfigDict(extra='forbid')
+
     test_failures: Optional[IssueStrategyAnalysis] = None
     linting_issues: Optional[IssueStrategyAnalysis] = None
     security_issues: Optional[IssueStrategyAnalysis] = None
@@ -36,6 +40,8 @@ class OverallIssueStrategy(BaseModel):
 
 class ExecutionPhase(BaseModel):
     """A phase in the remediation execution plan"""
+    model_config = ConfigDict(extra='forbid')
+
     phase: int = Field(..., description="Phase number")
     name: str = Field(..., description="Phase name")
     fix_ids: List[str] = Field(..., description="IDs of fixes to apply in this phase")
@@ -47,6 +53,8 @@ class ExecutionPhase(BaseModel):
 
 class ExecutionPlan(BaseModel):
     """Complete execution plan for remediation"""
+    model_config = ConfigDict(extra='forbid')
+
     phases: List[ExecutionPhase] = Field(..., description="Execution phases")
     testing_strategy: str = Field(..., description="How to test after fixes")
     rollback_strategy: str = Field(..., description="How to rollback if needed")
@@ -56,6 +64,8 @@ class ExecutionPlan(BaseModel):
 
 class ValidationIssue(BaseModel):
     """An issue found during plan validation"""
+    model_config = ConfigDict(extra='forbid')
+
     severity: Literal["critical", "high", "medium", "low"] = Field(..., description="Issue severity")
     issue: str = Field(..., description="Description of problem")
     suggestion: str = Field(..., description="How to fix")
@@ -63,6 +73,8 @@ class ValidationIssue(BaseModel):
 
 class PlanValidationResult(BaseModel):
     """Results of validating a remediation plan"""
+    model_config = ConfigDict(extra='forbid')
+
     valid: bool = Field(..., description="Whether plan is valid")
     completeness_score: int = Field(..., ge=0, le=100, description="Completeness score 0-100")
     issues: List[ValidationIssue] = Field(default_factory=list, description="Issues found")
@@ -78,6 +90,8 @@ class PlanValidationResult(BaseModel):
 
 class FixChange(BaseModel):
     """A single code change made as part of a fix"""
+    model_config = ConfigDict(extra='forbid')
+
     file: str = Field(..., description="File path")
     action: Literal["replace", "insert", "delete"] = Field(..., description="Type of change")
     line_number: Optional[int] = Field(None, description="Line number affected")
@@ -88,6 +102,8 @@ class FixChange(BaseModel):
 
 class TestFixSuggestion(BaseModel):
     """AI suggestion for fixing a test"""
+    model_config = ConfigDict(extra='forbid')
+
     root_cause: str = Field(..., description="Why test is failing")
     files_to_modify: List[str] = Field(..., description="Files that need changes")
     changes: List[FixChange] = Field(..., description="Specific code changes")
@@ -98,6 +114,8 @@ class TestFixSuggestion(BaseModel):
 
 class LintingFixSuggestion(BaseModel):
     """AI suggestion for fixing a linting issue"""
+    model_config = ConfigDict(extra='forbid')
+
     fixed_code: str = Field(..., description="Corrected code section")
     explanation: str = Field(..., description="What was fixed and why")
     confidence: Literal["low", "medium", "high"] = Field(..., description="Confidence in fix")
@@ -105,6 +123,8 @@ class LintingFixSuggestion(BaseModel):
 
 class SecurityFixSuggestion(BaseModel):
     """AI suggestion for fixing a security issue"""
+    model_config = ConfigDict(extra='forbid')
+
     vulnerability_type: str = Field(..., description="Type of vulnerability")
     risk_explanation: str = Field(..., description="Why this is dangerous")
     fix_strategy: str = Field(..., description="High-level fix approach")
@@ -116,6 +136,8 @@ class SecurityFixSuggestion(BaseModel):
 
 class ExecutionSummary(BaseModel):
     """Summary of execution for human review"""
+    model_config = ConfigDict(extra='forbid')
+
     text: str = Field(..., description="2-3 sentence summary of execution")
 
 
@@ -125,16 +147,22 @@ class ExecutionSummary(BaseModel):
 
 class CommitMessage(BaseModel):
     """Generated commit message"""
+    model_config = ConfigDict(extra='forbid')
+
     message: str = Field(..., description="Full commit message in conventional commits format")
 
 
 class PRDescription(BaseModel):
     """Generated PR description"""
+    model_config = ConfigDict(extra='forbid')
+
     markdown: str = Field(..., description="Markdown-formatted PR description")
 
 
 class ActionDecision(BaseModel):
     """Decision on what action to take"""
+    model_config = ConfigDict(extra='forbid')
+
     action: Literal["merge", "update_pr", "manual_review", "abort"] = Field(..., description="Action to take")
     confidence: Literal["low", "medium", "high"] = Field(..., description="Decision confidence")
     reasoning: str = Field(..., description="Why this action was chosen")
@@ -144,6 +172,8 @@ class ActionDecision(BaseModel):
 
 class MergeSafetyCheck(BaseModel):
     """Final safety check before merge"""
+    model_config = ConfigDict(extra='forbid')
+
     safe_to_merge: bool = Field(..., description="Whether safe to merge")
     confidence: Literal["low", "medium", "high"] = Field(..., description="Confidence level")
     concerns: List[str] = Field(default_factory=list, description="Remaining concerns")
@@ -153,6 +183,8 @@ class MergeSafetyCheck(BaseModel):
 
 class FinalReport(BaseModel):
     """Final comprehensive report"""
+    model_config = ConfigDict(extra='forbid')
+
     narrative: str = Field(..., description="Markdown narrative report")
 
 
@@ -162,6 +194,8 @@ class FinalReport(BaseModel):
 
 class AnalysisPlan(BaseModel):
     """Plan for analyzing the PR"""
+    model_config = ConfigDict(extra='forbid')
+
     priority_languages: List[str] = Field(..., description="Languages to analyze first")
     analysis_types: List[str] = Field(..., description="Types of analysis to perform")
     skip_analysis: List[str] = Field(default_factory=list, description="Analysis types to skip")
@@ -171,12 +205,16 @@ class AnalysisPlan(BaseModel):
 
 class SOLIDPrincipleAnalysis(BaseModel):
     """Analysis of a single SOLID principle"""
+    model_config = ConfigDict(extra='forbid')
+
     rating: Literal["excellent", "good", "fair", "poor"] = Field(..., description="Adherence rating")
     violations: List[str] = Field(default_factory=list, description="Specific violations with file:line")
 
 
 class SOLIDPrinciples(BaseModel):
     """Complete SOLID principles analysis"""
+    model_config = ConfigDict(extra='forbid')
+
     srp: SOLIDPrincipleAnalysis = Field(..., description="Single Responsibility Principle")
     ocp: SOLIDPrincipleAnalysis = Field(..., description="Open/Closed Principle")
     lsp: SOLIDPrincipleAnalysis = Field(..., description="Liskov Substitution Principle")
@@ -186,6 +224,8 @@ class SOLIDPrinciples(BaseModel):
 
 class DesignPatterns(BaseModel):
     """Design patterns analysis"""
+    model_config = ConfigDict(extra='forbid')
+
     good_patterns: List[str] = Field(..., description="Well-implemented patterns")
     pattern_misuse: List[str] = Field(..., description="Incorrectly applied patterns")
     missing_patterns: List[str] = Field(..., description="Where patterns would help")
@@ -193,6 +233,8 @@ class DesignPatterns(BaseModel):
 
 class AntiPattern(BaseModel):
     """A detected anti-pattern"""
+    model_config = ConfigDict(extra='forbid')
+
     type: str = Field(..., description="Type of anti-pattern")
     severity: Literal["critical", "high", "medium", "low"] = Field(..., description="Severity")
     location: str = Field(..., description="File and location")
@@ -202,12 +244,16 @@ class AntiPattern(BaseModel):
 
 class AntiPatterns(BaseModel):
     """Anti-patterns detection"""
+    model_config = ConfigDict(extra='forbid')
+
     detected: List[AntiPattern] = Field(..., description="Detected anti-patterns")
     count_by_severity: Dict[str, int] = Field(..., description="Count by severity level")
 
 
 class CodeOrganization(BaseModel):
     """Code organization assessment"""
+    model_config = ConfigDict(extra='forbid')
+
     separation_of_concerns: Literal["excellent", "good", "fair", "poor"] = Field(..., description="SoC quality")
     layering: str = Field(..., description="Layering assessment with issues")
     module_cohesion: Literal["excellent", "good", "fair", "poor"] = Field(..., description="Cohesion quality")
@@ -216,6 +262,8 @@ class CodeOrganization(BaseModel):
 
 class CouplingCohesion(BaseModel):
     """Coupling and cohesion analysis"""
+    model_config = ConfigDict(extra='forbid')
+
     coupling: Literal["high", "medium", "low"] = Field(..., description="Coupling level")
     cohesion: Literal["high", "medium", "low"] = Field(..., description="Cohesion level")
     issues: List[str] = Field(..., description="Specific coupling/cohesion issues")
@@ -223,6 +271,8 @@ class CouplingCohesion(BaseModel):
 
 class DependencyManagement(BaseModel):
     """Dependency management assessment"""
+    model_config = ConfigDict(extra='forbid')
+
     injection_quality: Literal["excellent", "good", "fair", "poor"] = Field(..., description="DI quality")
     singleton_overuse: bool = Field(..., description="Whether singletons are overused")
     circular_dependencies: List[str] = Field(default_factory=list, description="Circular deps found")
@@ -231,6 +281,8 @@ class DependencyManagement(BaseModel):
 
 class Testability(BaseModel):
     """Testability assessment"""
+    model_config = ConfigDict(extra='forbid')
+
     test_coverage_estimate: str = Field(..., description="Estimated test coverage")
     issues: List[str] = Field(..., description="Testability issues")
     mockability: Literal["excellent", "good", "fair", "poor"] = Field(..., description="How easy to mock")
@@ -238,6 +290,8 @@ class Testability(BaseModel):
 
 class Maintainability(BaseModel):
     """Maintainability assessment"""
+    model_config = ConfigDict(extra='forbid')
+
     complexity_hotspots: List[str] = Field(..., description="Complex areas")
     documentation_gaps: List[str] = Field(..., description="Missing documentation")
     naming_issues: List[str] = Field(..., description="Naming problems")
@@ -246,6 +300,8 @@ class Maintainability(BaseModel):
 
 class OverallArchitecturalAssessment(BaseModel):
     """Overall architectural quality assessment"""
+    model_config = ConfigDict(extra='forbid')
+
     architectural_quality: Literal["excellent", "good", "fair", "poor"] = Field(..., description="Overall quality")
     technical_debt_level: Literal["low", "medium", "high"] = Field(..., description="Tech debt level")
     refactoring_priority: Literal["immediate", "soon", "eventual", "none"] = Field(..., description="Refactoring urgency")
@@ -255,6 +311,8 @@ class OverallArchitecturalAssessment(BaseModel):
 
 class ArchitecturalRecommendations(BaseModel):
     """Architectural improvement recommendations"""
+    model_config = ConfigDict(extra='forbid')
+
     immediate: List[str] = Field(..., description="Critical fixes needed now")
     short_term: List[str] = Field(..., description="Improvements for next sprint")
     long_term: List[str] = Field(..., description="Strategic refactoring")
@@ -262,6 +320,8 @@ class ArchitecturalRecommendations(BaseModel):
 
 class ArchitecturalAnalysis(BaseModel):
     """Complete architectural design analysis"""
+    model_config = ConfigDict(extra='forbid')
+
     solid_principles: SOLIDPrinciples = Field(..., description="SOLID principles adherence")
     design_patterns: DesignPatterns = Field(..., description="Design patterns analysis")
     anti_patterns: AntiPatterns = Field(..., description="Anti-patterns detected")
@@ -276,6 +336,8 @@ class ArchitecturalAnalysis(BaseModel):
 
 class PriorityItem(BaseModel):
     """A priority item to address"""
+    model_config = ConfigDict(extra='forbid')
+
     priority: int = Field(..., ge=1, description="Priority rank")
     category: Literal["architecture", "testing", "security", "quality"] = Field(..., description="Category")
     issue: str = Field(..., description="Issue description")
@@ -284,6 +346,8 @@ class PriorityItem(BaseModel):
 
 class BlockingIssue(BaseModel):
     """An issue that blocks merge"""
+    model_config = ConfigDict(extra='forbid')
+
     type: Literal["architecture", "security", "functionality"] = Field(..., description="Issue type")
     description: str = Field(..., description="Issue description")
     severity: Literal["critical", "high", "medium", "low"] = Field(..., description="Severity")
@@ -291,6 +355,8 @@ class BlockingIssue(BaseModel):
 
 class ComprehensiveInsights(BaseModel):
     """Comprehensive AI insights combining all analyses"""
+    model_config = ConfigDict(extra='forbid')
+
     assessment: Literal["ready_to_merge", "needs_work", "critical_issues", "architectural_refactoring_needed"] = Field(..., description="Overall assessment")
     priorities: List[PriorityItem] = Field(..., description="Top 5 priorities")
     risk_level: Literal["low", "medium", "high", "critical"] = Field(..., description="Risk level")
@@ -308,6 +374,8 @@ class ComprehensiveInsights(BaseModel):
 
 class RemainingIssues(BaseModel):
     """Remaining issues after fixes"""
+    model_config = ConfigDict(extra='forbid')
+
     critical: List[str] = Field(default_factory=list, description="Critical issues")
     high: List[str] = Field(default_factory=list, description="High priority issues")
     medium: List[str] = Field(default_factory=list, description="Medium priority issues")
@@ -315,6 +383,8 @@ class RemainingIssues(BaseModel):
 
 class VerificationAnalysis(BaseModel):
     """AI analysis of verification results"""
+    model_config = ConfigDict(extra='forbid')
+
     ready_to_merge: bool = Field(..., description="Whether ready to merge")
     quality_improvement: Literal["significant", "moderate", "minimal", "negative", "none"] = Field(..., description="Quality improvement level")
     remaining_issues: RemainingIssues = Field(..., description="Remaining issues by priority")
@@ -326,6 +396,8 @@ class VerificationAnalysis(BaseModel):
 
 class BlockingIssueDetail(BaseModel):
     """Detail of an issue blocking merge"""
+    model_config = ConfigDict(extra='forbid')
+
     issue: str = Field(..., description="Issue description")
     reason: str = Field(..., description="Why it blocks merge")
     estimated_time: str = Field(..., description="Estimated time to fix")
@@ -333,6 +405,8 @@ class BlockingIssueDetail(BaseModel):
 
 class IssuePrioritization(BaseModel):
     """Prioritization of remaining issues"""
+    model_config = ConfigDict(extra='forbid')
+
     blocking_issues: List[BlockingIssueDetail] = Field(..., description="Issues blocking merge")
     can_defer: List[str] = Field(..., description="Issues that can wait")
     next_steps: List[str] = Field(..., description="Ordered list of actions")
@@ -341,6 +415,8 @@ class IssuePrioritization(BaseModel):
 
 class ImprovementSuggestion(BaseModel):
     """A specific improvement suggestion"""
+    model_config = ConfigDict(extra='forbid')
+
     area: str = Field(..., description="Area to improve")
     suggestion: str = Field(..., description="What to do")
     impact: str = Field(..., description="Expected benefit")
@@ -348,6 +424,8 @@ class ImprovementSuggestion(BaseModel):
 
 class ImprovementSuggestions(BaseModel):
     """Comprehensive improvement suggestions"""
+    model_config = ConfigDict(extra='forbid')
+
     code_improvements: List[ImprovementSuggestion] = Field(..., description="Code improvements")
     testing_improvements: List[ImprovementSuggestion] = Field(..., description="Testing improvements")
     security_improvements: List[ImprovementSuggestion] = Field(..., description="Security improvements")

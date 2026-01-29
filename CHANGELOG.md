@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 <!-- changelog:entries -->
 
+## [0.1.22-rc.9] - 2026-01-29
+
+
+### Other
+
+- Increase max files for analysis and extend timeout for PR analysis (8b8b242)
+
+- Add get_file_metadata function to execute shell command for file listing (b32533d)
+
 ## [0.1.22-rc.8] - 2026-01-29
 
 

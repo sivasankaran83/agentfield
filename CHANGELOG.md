@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 <!-- changelog:entries -->
 
+## [0.1.22-rc.7] - 2026-01-29
+
+
+### Other
+
+- Refactor Pydantic schemas to enforce strict validation by forbidding extra fields (6884aba)
+
+- Add get_file_metadata function to execute shell command for file listing (7ca66cf)
+
 ## [0.1.22-rc.6] - 2026-01-29
 
 

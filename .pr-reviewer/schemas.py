@@ -241,13 +241,18 @@ class AntiPattern(BaseModel):
     description: str = Field(..., description="What's wrong")
     recommendation: str = Field(..., description="How to fix")
 
-
+class SeverityCounts(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    critical: int = 0
+    high: int = 0
+    medium: int = 0
+    low: int = 0
+    
 class AntiPatterns(BaseModel):
     """Anti-patterns detection"""
     model_config = ConfigDict(extra='forbid')
-
-    detected: List[AntiPattern] = Field(..., description="Detected anti-patterns")
-    count_by_severity: Dict[str, int] = Field(..., description="Count by severity level")
+    detected: List[AntiPattern]
+    count_by_severity: SeverityCounts
 
 
 class CodeOrganization(BaseModel):

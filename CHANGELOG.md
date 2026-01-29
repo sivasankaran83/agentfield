@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 <!-- changelog:entries -->
 
+## [0.1.22-rc.5] - 2026-01-29
+
+
+### Other
+
+- Add SeverityCounts model to enforce strict validation for severity levels in anti-patterns (d26b206)
+
+- Add get_file_metadata function to execute shell command for file listing (8ee5860)
+
 ## [0.1.22-rc.4] - 2026-01-29
 
 

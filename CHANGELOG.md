@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 <!-- changelog:entries -->
 
+## [0.1.22-rc.10] - 2026-01-29
+
+
+### Other
+
+- Refactor ArchitecturalAnalysis schema to use specific classes for detailed assessments (3a83e50)
+
+- Remove unused get_file_metadata function from AgentAI class (88eb65e)
+
 ## [0.1.22-rc.9] - 2026-01-29
 
 

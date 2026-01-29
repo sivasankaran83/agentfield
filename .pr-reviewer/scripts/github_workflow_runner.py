@@ -234,7 +234,7 @@ This will take 2-5 minutes.
                 agent="summarizer",
                 reasoner="analyze_pr",
                 input_data=input_data,
-                timeout=300
+                timeout=1000
             )
             
             progress.update(task, completed=True)

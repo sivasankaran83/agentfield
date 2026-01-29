@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 <!-- changelog:entries -->
 
+## [0.1.22-rc.12] - 2026-01-29
+
+
+### Other
+
+- Removed the unused function in agent_ai.py (e3c24cc)
+
 ## [0.1.22-rc.11] - 2026-01-29
 
 

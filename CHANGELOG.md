@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 <!-- changelog:entries -->
 
+## [0.1.22-rc.4] - 2026-01-29
+
+
+### Other
+
+- Add model_config to Pydantic schemas to enforce strict validation (c5e784e)
+
+- Remove unused get_file_metadata function from AgentAI class (98a0f8a)
+
 ## [0.1.22-rc.3] - 2026-01-29
 
 

@@ -867,11 +867,16 @@ async def analyze_architectural_design(
     Return as JSON:
     {{
         "solid_principles": {{
-            "srp": {{"rating": "good", "violations": ["file:line - description"]}},
-            "ocp": {{"rating": "fair", "violations": [...]}},
-            "lsp": {{"rating": "good", "violations": []}},
-            "isp": {{"rating": "excellent", "violations": []}},
-            "dip": {{"rating": "poor", "violations": [...]}}
+            "srp_rating": "good",
+            "srp_violations": ["file:line - description"],
+            "ocp_rating": "fair",
+            "ocp_violations": ["file:line - description"],
+            "lsp_rating": "good",
+            "lsp_violations": [],
+            "isp_rating": "excellent",
+            "isp_violations": [],
+            "dip_rating": "poor",
+            "dip_violations": ["file:line - description"]
         }},
         "design_patterns": {{
             "good_patterns": ["Repository pattern in data layer", "Factory for object creation"],
@@ -879,16 +884,11 @@ async def analyze_architectural_design(
             "missing_patterns": ["Strategy pattern would help with payment methods"]
         }},
         "anti_patterns": {{
-            "detected": [
-                {{
-                    "type": "God Object",
-                    "severity": "high",
-                    "location": "src/user_service.py:UserService",
-                    "description": "UserService handles authentication, authorization, profile, and notifications",
-                    "recommendation": "Split into AuthService, ProfileService, NotificationService"
-                }}
-            ],
-            "count_by_severity": {{"critical": 0, "high": 2, "medium": 5, "low": 3}}
+            "detected_patterns": ["[God Object][high] src/user_service.py:UserService - UserService handles authentication, authorization, profile, and notifications - Split into AuthService, ProfileService, NotificationService"],
+            "critical_count": 0,
+            "high_count": 2,
+            "medium_count": 5,
+            "low_count": 3
         }},
         "code_organization": {{
             "separation_of_concerns": "good",
@@ -919,9 +919,9 @@ async def analyze_architectural_design(
             "duplication": ["Error handling pattern repeated 15 times"]
         }},
         "overall_assessment": {{
-            "architectural_quality": "good|fair|poor",
-            "technical_debt_level": "low|medium|high",
-            "refactoring_priority": "immediate|soon|eventual|none",
+            "architectural_quality": "good",
+            "technical_debt_level": "medium",
+            "refactoring_priority": "soon",
             "major_concerns": ["list of top 3-5 concerns"],
             "strengths": ["list of architectural strengths"]
         }},
@@ -1077,17 +1077,21 @@ async def analyze_pr(
     
     Return as JSON:
     {{
-        "assessment": "ready_to_merge|needs_work|critical_issues|architectural_refactoring_needed",
+        "assessment": "ready_to_merge",
         "priorities": [
-            {{"priority": 1, "category": "architecture|testing|security|quality", "issue": "...", "impact": "high|medium|low"}},
-            ...
+            "Priority 1 [architecture] high: Issue description here",
+            "Priority 2 [testing] medium: Issue description here",
+            "Priority 3 [security] high: Issue description here",
+            "Priority 4 [quality] low: Issue description here",
+            "Priority 5 [architecture] medium: Issue description here"
         ],
-        "risk_level": "low|medium|high|critical",
-        "estimated_effort_hours": "number",
+        "risk_level": "medium",
+        "estimated_effort_hours": 8.5,
         "blocking_issues": [
-            {{"type": "architecture|security|functionality", "description": "...", "severity": "critical|high|medium|low"}}
+            "[architecture] critical: Description of critical architectural issue",
+            "[security] high: Description of security issue"
         ],
-        "architectural_concerns_block_merge": true|false,
+        "architectural_concerns_block_merge": false,
         "recommendations": [
             "Immediate action 1",
             "Immediate action 2",

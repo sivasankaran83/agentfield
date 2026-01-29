@@ -3,6 +3,13 @@ Verifier Agent - Final Production Version
 Verifies that fixes are correct and complete with comprehensive checking
 """
 
+# Apply nest_asyncio to handle nested event loops in CI environments
+try:
+    import nest_asyncio
+    nest_asyncio.apply()
+except ImportError:
+    pass
+
 from agentfield import AIConfig, Agent
 from typing import Dict, List, Optional
 import os

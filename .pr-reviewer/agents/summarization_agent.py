@@ -3,6 +3,13 @@ Summarization Agent - Enhanced with Architectural Analysis
 Analyzes PR changes using multi-language tools, LLM, and architectural design principles
 """
 
+# Apply nest_asyncio to handle nested event loops in CI environments
+try:
+    import nest_asyncio
+    nest_asyncio.apply()
+except ImportError:
+    pass
+
 from agentfield import AIConfig, Agent
 from typing import Dict, List, Optional
 import os

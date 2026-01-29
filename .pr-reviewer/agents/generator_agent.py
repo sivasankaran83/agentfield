@@ -3,6 +3,13 @@ Generator Agent - Final Production Version
 Generates final PR updates or performs merge with human oversight
 """
 
+# Apply nest_asyncio to handle nested event loops in CI environments
+try:
+    import nest_asyncio
+    nest_asyncio.apply()
+except ImportError:
+    pass
+
 from agentfield import AIConfig, Agent
 from typing import Dict, List, Optional
 import os

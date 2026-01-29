@@ -265,16 +265,16 @@ class ArchitecturalAnalysis(BaseModel):
     """Complete architectural design analysis"""
     model_config = ConfigDict(extra='forbid')
 
-    solid_principles: List[str] = Field(..., description="SOLID principles adherence")
-    design_patterns: List[str] = Field(..., description="Design patterns analysis")
-    anti_patterns: List[str] = Field(..., description="Anti-patterns detected")
-    code_organization: List[str] = Field(..., description="Organization quality")
-    coupling_cohesion: List[str] = Field(..., description="Coupling/cohesion analysis")
-    dependency_management: List[str] = Field(..., description="Dependency management")
-    testability: List[str] = Field(..., description="Testability assessment")
-    maintainability: List[str] = Field(..., description="Maintainability concerns")
-    overall_assessment: List[str] = Field(..., description="Overall assessment")
-    recommendations: List[str] = Field(..., description="Recommendations")
+    solid_principles: SOLIDPrinciples = Field(..., description="SOLID principles adherence analysis")
+    design_patterns: DesignPatterns = Field(..., description="Design patterns analysis")
+    anti_patterns: AntiPatterns = Field(..., description="Anti-patterns detected")
+    code_organization: CodeOrganization = Field(..., description="Code organization quality")
+    coupling_cohesion: CouplingCohesion = Field(..., description="Coupling and cohesion analysis")
+    dependency_management: DependencyManagement = Field(..., description="Dependency management assessment")
+    testability: Testability = Field(..., description="Testability assessment")
+    maintainability: Maintainability = Field(..., description="Maintainability concerns")
+    overall_assessment: OverallArchitecturalAssessment = Field(..., description="Overall architectural assessment")
+    recommendations: ArchitecturalRecommendations = Field(..., description="Improvement recommendations")
 
 
 class ComprehensiveInsights(BaseModel):

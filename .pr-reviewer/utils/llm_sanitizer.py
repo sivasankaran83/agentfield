@@ -170,3 +170,38 @@ def extract_json_from_markdown(text: str) -> str:
         return code_match.group(1).strip()
 
     return text
+
+
+def parse_ai_json_response(response: Any) -> Dict:
+    """
+    Parse AI response as JSON without using schema parameter.
+
+    This function is used as a workaround for the "compiled grammar too large" error
+    that occurs when using schema= parameter with complex Pydantic models.
+
+    Args:
+        response: AI response object
+
+    Returns:
+        Parsed and sanitized JSON dict
+
+    Raises:
+        ValueError: If JSON parsing fails
+    """
+    import json
+
+    # Extract text from response
+    if hasattr(response, 'text'):
+        content = response.text
+    else:
+        content = str(response)
+
+    # Extract JSON from markdown if wrapped
+    content = extract_json_from_markdown(content)
+
+    # Parse JSON
+    try:
+        parsed = json.loads(content)
+        return sanitize_llm_output(parsed)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Failed to parse JSON from AI response: {e}\nContent: {content[:200]}")

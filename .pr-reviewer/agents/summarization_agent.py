@@ -3,6 +3,13 @@ Summarization Agent - Enhanced with Architectural Analysis
 Analyzes PR changes using multi-language tools, LLM, and architectural design principles
 """
 
+# Apply nest_asyncio to handle nested event loops in CI environments
+try:
+    import nest_asyncio
+    nest_asyncio.apply()
+except ImportError:
+    pass
+
 from agentfield import AIConfig, Agent
 from typing import Dict, List, Optional
 import os
@@ -34,19 +41,19 @@ app = Agent(
 
 
 @app.skill()
-def get_changed_files(base_branch: str = "main", head_branch: str = "HEAD") -> List[str]:
+async def get_changed_files(base_branch: str = "main", head_branch: str = "HEAD") -> List[str]:
     """
     Get list of changed files between branches
-    
+
     Args:
         base_branch: Base branch for comparison
         head_branch: Head branch (PR branch)
-        
+
     Returns:
         List of changed file paths
     """
     git_utils = GitUtils()
-    return git_utils.get_changed_files(base_branch, head_branch)
+    return await git_utils.get_changed_files_async(base_branch, head_branch)
 
 
 @app.skill()
@@ -133,29 +140,82 @@ def analyze_file_structure(files: List[str]) -> Dict:
 @app.skill()
 def analyze_code_complexity(file_path: str) -> Dict:
     """
-    Analyze code complexity metrics for a file
-    
+    Analyze code complexity metrics for a file using configured tools
+
     Args:
         file_path: Path to file
-        
+
     Returns:
         Complexity metrics
     """
+    import logging
+    from utils.tool_checker import ToolChecker
+    from utils.config_loader import config
+
+    logger = logging.getLogger(__name__)
+
+    # Get file extension
+    file_extension = Path(file_path).suffix
+
+    if not file_extension:
+        return {"status": "no_extension", "message": "File has no extension"}
+
+    # Get configured complexity threshold
+    max_complexity = config.get_max_cyclomatic_complexity()
+
     try:
-        # Use different tools based on language
-        if file_path.endswith('.py'):
-            # Use radon for Python
+        # Get available tool for this file type with auto-install
+        # The auto_install flag in config.yml controls whether tools will be automatically installed
+        available_tool = ToolChecker.get_first_available_tool(file_extension, auto_install=True)
+
+        if not available_tool:
+            # Get language name and potential tools
+            language = ToolChecker.EXT_TO_LANG.get(file_extension)
+            potential_tools = ToolChecker._get_tools_for_extension(file_extension)
+
+            logger.error(
+                f"No complexity analysis tool installed for {file_extension} files. "
+                f"Supported tools: {potential_tools}"
+            )
+
+            # Get installation suggestions
+            install_commands = [
+                ToolChecker.get_tool_install_command(tool, language)
+                for tool in potential_tools
+            ]
+
+            return {
+                "status": "tool_not_installed",
+                "file_type": file_extension,
+                "message": f"No complexity analysis tool found for {file_extension} files",
+                "suggested_tools": potential_tools,
+                "install_commands": install_commands
+            }
+
+        # Run analysis with the available tool
+        result = None
+
+        if available_tool == 'radon' and file_extension == '.py':
+            # Python with radon
             result = subprocess.run(
                 ['radon', 'cc', '-j', file_path],
                 capture_output=True,
                 text=True,
                 timeout=30
             )
-            if result.returncode == 0:
-                return json.loads(result.stdout)
-        
-        elif file_path.endswith('.go'):
-            # Use gocyclo for Go
+            if result.returncode == 0 and result.stdout:
+                complexity_data = json.loads(result.stdout)
+                return {
+                    "status": "success",
+                    "tool": "radon",
+                    "file": file_path,
+                    "complexity_data": complexity_data,
+                    "threshold": max_complexity,
+                    "violations": _check_complexity_violations(complexity_data, max_complexity)
+                }
+
+        elif available_tool == 'gocyclo' and file_extension == '.go':
+            # Go with gocyclo
             result = subprocess.run(
                 ['gocyclo', '-avg', file_path],
                 capture_output=True,
@@ -163,12 +223,116 @@ def analyze_code_complexity(file_path: str) -> Dict:
                 timeout=30
             )
             if result.returncode == 0:
-                return {"average_complexity": result.stdout.strip()}
-        
-        return {"status": "unsupported_language"}
-    
+                return {
+                    "status": "success",
+                    "tool": "gocyclo",
+                    "file": file_path,
+                    "average_complexity": result.stdout.strip(),
+                    "threshold": max_complexity
+                }
+
+        elif available_tool == 'eslint' and file_extension in ['.js', '.ts']:
+            # JavaScript/TypeScript with eslint
+            result = subprocess.run(
+                ['eslint', '--format', 'json', file_path],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            if result.stdout:
+                eslint_data = json.loads(result.stdout)
+                return {
+                    "status": "success",
+                    "tool": "eslint",
+                    "file": file_path,
+                    "complexity_data": eslint_data,
+                    "threshold": max_complexity
+                }
+
+        elif available_tool == 'lizard' and file_extension in ['.cpp', '.c']:
+            # C/C++ with lizard
+            result = subprocess.run(
+                ['lizard', '-l', 'cpp', file_path],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            if result.returncode == 0:
+                return {
+                    "status": "success",
+                    "tool": "lizard",
+                    "file": file_path,
+                    "complexity_output": result.stdout,
+                    "threshold": max_complexity
+                }
+
+        # If we got here, tool ran but produced unexpected output
+        if result:
+            logger.warning(
+                f"Tool '{available_tool}' completed but output format was unexpected. "
+                f"Return code: {result.returncode}, stderr: {result.stderr[:200]}"
+            )
+            return {
+                "status": "tool_error",
+                "tool": available_tool,
+                "file": file_path,
+                "error": f"Tool completed with return code {result.returncode}",
+                "stderr": result.stderr[:500] if result.stderr else None
+            }
+
+        return {
+            "status": "unsupported_language",
+            "file_type": file_extension,
+            "available_tool": available_tool
+        }
+
+    except subprocess.TimeoutExpired:
+        logger.error(f"Complexity analysis timed out for {file_path}")
+        return {
+            "status": "timeout",
+            "file": file_path,
+            "message": "Analysis took too long (>30s)"
+        }
+
     except Exception as e:
-        return {"error": str(e)}
+        logger.error(f"Error analyzing complexity for {file_path}: {e}")
+        return {
+            "status": "error",
+            "file": file_path,
+            "error": str(e)
+        }
+
+
+def _check_complexity_violations(complexity_data: Dict, threshold: int) -> List[Dict]:
+    """
+    Check for complexity violations in radon output
+
+    Args:
+        complexity_data: Radon complexity data
+        threshold: Maximum allowed complexity
+
+    Returns:
+        List of violations
+    """
+    violations = []
+
+    # Radon format: {file_path: [{"complexity": N, "name": "func", ...}]}
+    for file_path, functions in complexity_data.items():
+        if not isinstance(functions, list):
+            continue
+
+        for func in functions:
+            complexity = func.get('complexity', 0)
+            if complexity > threshold:
+                violations.append({
+                    "file": file_path,
+                    "function": func.get('name', 'unknown'),
+                    "complexity": complexity,
+                    "threshold": threshold,
+                    "line": func.get('lineno', 0)
+                })
+
+    return violations
 
 
 @app.skill()
@@ -255,7 +419,7 @@ def run_language_analysis(language: str, files: List[str]) -> Dict:
 
 
 @app.skill()
-def get_git_diff(base_branch: str = "main", head_branch: str = "HEAD") -> str:
+async def get_git_diff(base_branch: str = "main", head_branch: str = "HEAD") -> str:
     """
     Get git diff between branches
 
@@ -266,21 +430,12 @@ def get_git_diff(base_branch: str = "main", head_branch: str = "HEAD") -> str:
     Returns:
         Git diff output
     """
-    try:
-        result = subprocess.run(
-            ["git", "diff", f"{base_branch}...{head_branch}"],
-            capture_output=True,
-            text=True,
-            check=True,
-            timeout=30
-        )
-        return result.stdout
-    except Exception as e:
-        return f"Error getting git diff: {e}"
+    git_utils = GitUtils()
+    return await git_utils.get_git_diff_async(base_branch, head_branch)
 
 
 @app.skill()
-def get_commit_messages(base_branch: str = "main", head_branch: str = "HEAD") -> List[str]:
+async def get_commit_messages(base_branch: str = "main", head_branch: str = "HEAD") -> List[str]:
     """
     Get commit messages in the PR
 
@@ -291,18 +446,8 @@ def get_commit_messages(base_branch: str = "main", head_branch: str = "HEAD") ->
     Returns:
         List of commit messages
     """
-    try:
-        result = subprocess.run(
-            ["git", "log", f"{base_branch}..{head_branch}", "--pretty=format:%s"],
-            capture_output=True,
-            text=True,
-            check=True,
-            timeout=30
-        )
-        messages = [msg.strip() for msg in result.stdout.split('\n') if msg.strip()]
-        return messages
-    except Exception as e:
-        return [f"Error getting commits: {e}"]
+    git_utils = GitUtils()
+    return await git_utils.get_commit_messages_async(base_branch, head_branch)
 
 
 @app.skill()
@@ -349,8 +494,8 @@ async def generate_comprehensive_summary(
     """
 
     # Get git information
-    git_diff = get_git_diff(base_branch, head_branch)
-    commit_messages = get_commit_messages(base_branch, head_branch)
+    git_diff = await get_git_diff(base_branch, head_branch)
+    commit_messages = await get_commit_messages(base_branch, head_branch)
     file_stats = get_changed_file_stats(base_branch, head_branch)
 
     # Truncate diff if too long
@@ -830,18 +975,18 @@ async def analyze_pr(
     """
     
     print(f"Analyzing PR #{pr_number}: {base_branch}...{head_branch}")
-    
+
     # Step 1: Get changed files
-    changed_files = get_changed_files(base_branch, head_branch)
-    
+    changed_files = await get_changed_files(base_branch, head_branch)
+
     if not changed_files:
         return {
             "status": "error",
             "message": "No changed files found"
         }
-    
+
     print(f"Found {len(changed_files)} changed files")
-    
+
     # Step 2: Detect languages
     language_files = detect_languages(changed_files)
     

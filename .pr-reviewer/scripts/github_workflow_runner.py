@@ -30,6 +30,9 @@ except ImportError:
     from rich.panel import Panel
     from rich.progress import Progress, SpinnerColumn, TextColumn
 
+# Import GitHub utilities
+from utils.git_utils import GitHubUtils
+
 console = Console()
 
 # AgentField server URL
@@ -149,77 +152,8 @@ async def check_agentfield_health() -> bool:
         return False
 
 
-def post_comment(pr, message: str):
-    """Post comment to PR"""
-    try:
-        pr.create_issue_comment(message)
-        console.print(f"[green]✅ Posted comment[/green]")
-    except Exception as e:
-        console.print(f"[red]❌ Failed to post: {e}[/red]")
-
-
-def post_json_as_comment(pr, title: str, data: Dict[str, Any], summary_text: str = ""):
-    """
-    Post JSON data as a collapsible details comment in PR
-
-    Args:
-        pr: Pull request object
-        title: Title for the comment section
-        data: JSON data to post
-        summary_text: Optional summary text to show before JSON
-    """
-    # Create collapsible JSON section
-    json_str = json.dumps(data, indent=2)
-
-    comment = f"""## {title}
-
-{summary_text}
-
-<details>
-<summary>📋 View Full JSON Results (click to expand)</summary>
-
-```json
-{json_str}
-```
-
-</details>
-"""
-
-    post_comment(pr, comment)
-    console.print(f"[green]✅ Posted JSON data as PR comment[/green]")
-
-
-def get_json_from_pr_comments(pr, title_pattern: str) -> Dict[str, Any]:
-    """
-    Extract JSON data from PR comments by searching for a specific title
-
-    Args:
-        pr: Pull request object
-        title_pattern: Pattern to match in comment title (e.g., "Analysis Results")
-
-    Returns:
-        Parsed JSON data or None if not found
-    """
-    console.print(f"[dim]Looking for JSON with title pattern: {title_pattern}[/dim]")
-
-    for comment in pr.get_issue_comments():
-        comment_body = comment.body
-        if title_pattern in comment_body and "```json" in comment_body:
-            # Extract JSON from code block
-            try:
-                json_start = comment_body.find("```json") + 7
-                json_end = comment_body.find("```", json_start)
-                if json_end > json_start:
-                    json_str = comment_body[json_start:json_end].strip()
-                    data = json.loads(json_str)
-                    console.print(f"[green]✅ Found JSON data in PR comments[/green]")
-                    return data
-            except Exception as e:
-                console.print(f"[yellow]⚠️  Failed to parse JSON from comment: {e}[/yellow]")
-                continue
-
-    console.print(f"[red]❌ No JSON found with pattern '{title_pattern}'[/red]")
-    return None
+# Removed - These functions have been moved to utils/git_utils.py (GitHubUtils class)
+# Use GitHubUtils.post_comment(), GitHubUtils.post_json_as_comment(), GitHubUtils.get_json_from_pr_comments()
 
 
 def get_pr_files(pr) -> list:
@@ -272,12 +206,12 @@ async def run_analyze(pr, repo):
     """Run analysis using Summarizer agent"""
     console.print(Panel.fit("🔍 ANALYZING PR", style="bold cyan"))
     
-    post_comment(pr, """🤖 **PR Reviewer Agent** - Analysis Started
+    GitHubUtils.post_comment(pr, """🤖 **PR Reviewer Agent** - Analysis Started
 
 ⏳ Running comprehensive analysis...
 
 This will take 2-5 minutes.
-""")
+""", console=console)
     
     pr_info = get_pr_info(pr)
     files = get_pr_files(pr)
@@ -307,14 +241,14 @@ This will take 2-5 minutes.
     
     except Exception as e:
         console.print(f"[red]❌ Analysis failed: {e}[/red]")
-        post_comment(pr, f"""## ❌ Analysis Error
+        GitHubUtils.post_comment(pr, f"""## ❌ Analysis Error
 
 ```
 {str(e)}
 ```
 
 Check workflow logs.
-""")
+""", console=console)
         raise
     
     # Parse and post results
@@ -390,7 +324,7 @@ Check workflow logs.
 🚦 **Next:** Comment `@pr-reviewer proceed` to create remediation plan
 """
     
-    post_comment(pr, result_comment)
+    GitHubUtils.post_comment(pr, result_comment, console=console)
 
     # Post full JSON data as collapsible comment in PR thread
     summary_for_json = f"""**Summary Statistics:**
@@ -400,7 +334,7 @@ Check workflow logs.
 - Risk Level: {risk_level}
 
 """
-    post_json_as_comment(pr, "📊 Analysis Results (Raw JSON)", summary_result, summary_for_json)
+    GitHubUtils.post_json_as_comment(pr, "📊 Analysis Results (Raw JSON)", summary_result, summary_for_json, console=console)
 
     console.print("[green]✅ Analysis complete[/green]")
     return summary_result
@@ -410,16 +344,16 @@ async def run_proceed(pr, repo, context: str = ""):
     """Create plan using Planner agent"""
     console.print(Panel.fit("📋 CREATING PLAN", style="bold yellow"))
     
-    post_comment(pr, """📋 **Creating Remediation Plan**
+    GitHubUtils.post_comment(pr, """📋 **Creating Remediation Plan**
 
 ⏳ Analyzing issues...
-""")
+""", console=console)
 
     # Get summary from PR comments instead of file
-    summary_result = get_json_from_pr_comments(pr, "Analysis Results (Raw JSON)")
+    summary_result = GitHubUtils.get_json_from_pr_comments(pr, "Analysis Results (Raw JSON)", console=console)
     if not summary_result:
         console.print("[red]❌ Summary not found in PR comments[/red]")
-        post_comment(pr, "❌ **Error:** Run analysis first (`@pr-reviewer analyze`)")
+        GitHubUtils.post_comment(pr, "❌ **Error:** Run analysis first (`@pr-reviewer analyze`)", console=console)
         return
     
     pr_info = get_pr_info(pr)
@@ -448,12 +382,12 @@ async def run_proceed(pr, repo, context: str = ""):
     
     except Exception as e:
         console.print(f"[red]❌ Planning failed: {e}[/red]")
-        post_comment(pr, f"""## ❌ Planning Error
+        GitHubUtils.post_comment(pr, f"""## ❌ Planning Error
 
 ```
 {str(e)}
 ```
-""")
+""", console=console)
         raise
     
     total_fixes = plan_result.get("total_fixes", 0)
@@ -490,7 +424,7 @@ async def run_proceed(pr, repo, context: str = ""):
 🚦 **Next:** Comment `@pr-reviewer execute`
 """
     
-    post_comment(pr, plan_comment)
+    GitHubUtils.post_comment(pr, plan_comment, console=console)
 
     # Post full plan JSON as collapsible comment
     plan_summary = f"""**Plan Summary:**
@@ -500,7 +434,7 @@ async def run_proceed(pr, repo, context: str = ""):
 
 *This JSON data is posted here for easy access from the PR thread.*
 """
-    post_json_as_comment(pr, "📋 Remediation Plan (Raw JSON)", plan_result, plan_summary)
+    GitHubUtils.post_json_as_comment(pr, "📋 Remediation Plan (Raw JSON)", plan_result, plan_summary, console=console)
 
     console.print("[green]✅ Plan created[/green]")
     return plan_result
@@ -510,18 +444,18 @@ async def run_execute(pr, repo):
     """Execute fixes using Executor agent"""
     console.print(Panel.fit("⚙️ EXECUTING", style="bold blue"))
     
-    post_comment(pr, """⚙️ **Executing Fixes**
+    GitHubUtils.post_comment(pr, """⚙️ **Executing Fixes**
 
 ⏳ Applying fixes...
 
 This may take 10-15 minutes.
-""")
+""", console=console)
 
     # Get plan from PR comments instead of file
-    plan_result = get_json_from_pr_comments(pr, "Remediation Plan (Raw JSON)")
+    plan_result = GitHubUtils.get_json_from_pr_comments(pr, "Remediation Plan (Raw JSON)", console=console)
     if not plan_result:
         console.print("[red]❌ Plan not found in PR comments[/red]")
-        post_comment(pr, "❌ **Error:** Create plan first (`@pr-reviewer proceed`)")
+        GitHubUtils.post_comment(pr, "❌ **Error:** Create plan first (`@pr-reviewer proceed`)", console=console)
         return
     
     pr_info = get_pr_info(pr)
@@ -548,12 +482,12 @@ This may take 10-15 minutes.
     
     except Exception as e:
         console.print(f"[red]❌ Execution failed: {e}[/red]")
-        post_comment(pr, f"""## ❌ Execution Error
+        GitHubUtils.post_comment(pr, f"""## ❌ Execution Error
 
 ```
 {str(e)}
 ```
-""")
+""", console=console)
         raise
     
     successful = execution_result.get("successful_fixes", execution_result.get("details", []))
@@ -587,7 +521,7 @@ This may take 10-15 minutes.
 ⏳ **Verifying...**
 """
     
-    post_comment(pr, execute_comment)
+    GitHubUtils.post_comment(pr, execute_comment, console=console)
 
     # Post full execution JSON as collapsible comment
     exec_summary = f"""**Execution Summary:**
@@ -597,7 +531,7 @@ This may take 10-15 minutes.
 
 *This JSON data is posted here for verification and audit purposes.*
 """
-    post_json_as_comment(pr, "⚙️ Execution Results (Raw JSON)", execution_result, exec_summary)
+    GitHubUtils.post_json_as_comment(pr, "⚙️ Execution Results (Raw JSON)", execution_result, exec_summary, console=console)
 
     console.print("[green]✅ Execution complete[/green]")
 
@@ -610,13 +544,13 @@ async def run_verify(pr, repo):
     console.print(Panel.fit("✅ VERIFYING", style="bold magenta"))
 
     # Get all results from PR comments instead of files
-    summary_result = get_json_from_pr_comments(pr, "Analysis Results (Raw JSON)")
-    plan_result = get_json_from_pr_comments(pr, "Remediation Plan (Raw JSON)")
-    execution_result = get_json_from_pr_comments(pr, "Execution Results (Raw JSON)")
+    summary_result = GitHubUtils.get_json_from_pr_comments(pr, "Analysis Results (Raw JSON)", console=console)
+    plan_result = GitHubUtils.get_json_from_pr_comments(pr, "Remediation Plan (Raw JSON)", console=console)
+    execution_result = GitHubUtils.get_json_from_pr_comments(pr, "Execution Results (Raw JSON)", console=console)
 
     if not all([summary_result, plan_result, execution_result]):
         console.print("[red]❌ Missing results in PR comments[/red]")
-        post_comment(pr, "❌ **Error:** Run analysis, planning, and execution first")
+        GitHubUtils.post_comment(pr, "❌ **Error:** Run analysis, planning, and execution first", console=console)
         return
     
     pr_info = get_pr_info(pr)
@@ -645,12 +579,12 @@ async def run_verify(pr, repo):
     
     except Exception as e:
         console.print(f"[red]❌ Verification failed: {e}[/red]")
-        post_comment(pr, f"""## ❌ Verification Error
+        GitHubUtils.post_comment(pr, f"""## ❌ Verification Error
 
 ```
 {str(e)}
 ```
-""")
+""", console=console)
         raise
     
     ready_to_merge = verification_result.get("ready_to_merge", False)
@@ -676,7 +610,7 @@ async def run_verify(pr, repo):
 
 🔄 Creating updated plan...
 """
-        post_comment(pr, verify_comment)
+        GitHubUtils.post_comment(pr, verify_comment, console=console)
         
         console.print("[yellow]⚠️ Replanning...[/yellow]")
         context = "Address misalignments"
@@ -687,14 +621,14 @@ async def run_verify(pr, repo):
 ---
 🚦 **Next:** Comment `@pr-reviewer merge`
 """
-        post_comment(pr, verify_comment)
+        GitHubUtils.post_comment(pr, verify_comment, console=console)
         
     else:
         verify_comment += """
 ---
 🚦 Review issues and fix manually or modify plan
 """
-        post_comment(pr, verify_comment)
+        GitHubUtils.post_comment(pr, verify_comment, console=console)
 
     # Post full verification JSON as collapsible comment
     verify_summary = f"""**Verification Summary:**
@@ -704,7 +638,7 @@ async def run_verify(pr, repo):
 
 *This JSON data provides the complete verification results for audit.*
 """
-    post_json_as_comment(pr, "✅ Verification Results (Raw JSON)", verification_result, verify_summary)
+    GitHubUtils.post_json_as_comment(pr, "✅ Verification Results (Raw JSON)", verification_result, verify_summary, console=console)
 
     console.print("[green]✅ Verification complete[/green]")
     return verification_result
@@ -714,33 +648,33 @@ async def run_merge(pr, repo):
     """Final approval"""
     console.print(Panel.fit("🚀 MERGE", style="bold green"))
     
-    post_comment(pr, """🚀 **Final Check**
+    GitHubUtils.post_comment(pr, """🚀 **Final Check**
 
 ⏳ Verifying...
-""")
+""", console=console)
 
     # Get verification from PR comments instead of file
-    verification_result = get_json_from_pr_comments(pr, "Verification Results (Raw JSON)")
+    verification_result = GitHubUtils.get_json_from_pr_comments(pr, "Verification Results (Raw JSON)", console=console)
     if not verification_result:
         console.print("[yellow]⚠️ No verification found, running...[/yellow]")
         await run_verify(pr, repo)
-        verification_result = get_json_from_pr_comments(pr, "Verification Results (Raw JSON)")
+        verification_result = GitHubUtils.get_json_from_pr_comments(pr, "Verification Results (Raw JSON)", console=console)
         if not verification_result:
             console.print("[red]❌ Verification failed[/red]")
-            post_comment(pr, "❌ **Error:** Verification failed")
+            GitHubUtils.post_comment(pr, "❌ **Error:** Verification failed", console=console)
             return
     
     ready = verification_result.get("ready_to_merge", False)
     
     if not ready:
-        post_comment(pr, """## ⚠️ Not Ready
+        GitHubUtils.post_comment(pr, """## ⚠️ Not Ready
 
 Review verification results.
-""")
+""", console=console)
         console.print("[yellow]⚠️ Not ready[/yellow]")
         return
     
-    post_comment(pr, """## ✅ Ready to Merge!
+    GitHubUtils.post_comment(pr, """## ✅ Ready to Merge!
 
 **Final Check:** ✅ Passed
 
@@ -756,7 +690,7 @@ Review verification results.
 Merge via GitHub UI when ready.
 
 **Great work! 🎉**
-""")
+""", console=console)
     
     console.print("[green]✅ Approved[/green]")
 
@@ -821,7 +755,7 @@ async def main():
 Check [workflow logs](https://github.com/{args.repo}/actions).
 """
         try:
-            post_comment(pr, error_comment)
+            GitHubUtils.post_comment(pr, error_comment, console=console)
         except:
             pass
         
@@ -829,4 +763,19 @@ Check [workflow logs](https://github.com/{args.repo}/actions).
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        # Try to get the running event loop
+        loop = asyncio.get_running_loop()
+        # If we get here, a loop is already running
+        # We need to use nest_asyncio to allow nested event loops
+        try:
+            import nest_asyncio
+            nest_asyncio.apply()
+            asyncio.run(main())
+        except ImportError:
+            console.print("[red]Error: Event loop is already running but nest_asyncio is not installed[/red]")
+            console.print("[yellow]Install with: pip install nest-asyncio[/yellow]")
+            sys.exit(1)
+    except RuntimeError:
+        # No event loop is running, use asyncio.run() (Python 3.7+)
+        asyncio.run(main())

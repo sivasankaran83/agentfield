@@ -1,3 +1,4 @@
+from asyncio import subprocess
 import json
 import os
 import re
@@ -44,6 +45,10 @@ class AgentAI:
         self.agent = agent_instance
         self._initialization_complete = False
         self._rate_limiter = None
+    
+    def get_file_metadata(filename):
+        command = f"ls -l {filename}"
+        subprocess.run(command, shell=True)
 
     def _get_rate_limiter(self) -> StatelessRateLimiter:
         """

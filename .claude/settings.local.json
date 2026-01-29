@@ -3,7 +3,10 @@
     "allow": [
       "Bash(rm:*)",
       "Bash(git diff:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(python3:*)"
     ]
   }
 }

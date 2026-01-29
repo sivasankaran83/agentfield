@@ -28,7 +28,12 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref || github.head_ref }}
-      
+
+      - name: 🔍 Fetch Base Branch
+        run: |
+          git fetch origin ${{ github.event.pull_request.base.ref || github.base_ref || 'main' }}:refs/remotes/origin/${{ github.event.pull_request.base.ref || github.base_ref || 'main' }}
+          echo "Base branch fetched: origin/${{ github.event.pull_request.base.ref || github.base_ref || 'main' }}"
+
       - name: 👩🏻‍💻 Setup Python
         uses: actions/setup-python@v5
         with:
@@ -96,6 +101,7 @@ jobs:
           exit 1
         env:
           AGENTFIELD_SERVER: http://localhost:8080
+          AGENTFIELD_FEATURES_DID_ENABLED: "true"
       
       - name: 👷🏽‍♂️ Start PR Reviewer Agents
         run: |

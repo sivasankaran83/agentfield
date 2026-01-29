@@ -3,6 +3,13 @@ Planner Agent - Final Production Version
 Creates remediation plans based on analysis results with human oversight
 """
 
+# Apply nest_asyncio to handle nested event loops in CI environments
+try:
+    import nest_asyncio
+    nest_asyncio.apply()
+except ImportError:
+    pass
+
 from agentfield import AIConfig, Agent
 from typing import Dict, List, Optional, Any
 import os

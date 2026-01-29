@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 <!-- changelog:entries -->
 
+## [0.1.22-rc.11] - 2026-01-29
+
+
+### Other
+
+- Removed the explicit Schema pass to AI call (aa77537)
+
+- Add get_file_metadata function to execute shell command for file listing (96f98f7)
+
 ## [0.1.22-rc.10] - 2026-01-29
 
 

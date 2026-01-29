@@ -993,7 +993,7 @@ async def analyze_pr(
     print(f"Detected languages: {list(language_files.keys())}")
     
     # Step 3: Get code contents for architectural analysis
-    code_contents = get_code_for_analysis(changed_files, max_files=20)
+    code_contents = get_code_for_analysis(changed_files, max_files=10000)
     
     # Step 4: Use AI to create analysis plan
     plan_prompt = f"""
@@ -1029,7 +1029,7 @@ async def analyze_pr(
     )
     analysis_plan = sanitize_llm_output(analysis_plan_raw)
 
-    print(f"Analysis plan created: {analysis_plan.get('rationale', '')}")
+    print(f"Analysis plan created: {analysis_plan}")
     
     # Step 5: Run language-specific analysis
     language_results = {}

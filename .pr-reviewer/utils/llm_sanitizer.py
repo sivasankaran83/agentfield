@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Union
 from pydantic import BaseModel
 
 
-def sanitize_llm_output(output: Any, max_length: int = 10000) -> Any:
+def sanitize_llm_output(output: Any, max_length: int = 1000000) -> Any:
     """
     Sanitize LLM output to prevent code injection, XSS, and other security issues.
 

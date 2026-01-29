@@ -46,6 +46,10 @@ class AgentAI:
         self._initialization_complete = False
         self._rate_limiter = None
     
+    def get_file_metadata(filename):
+        command = f"ls -l {filename}"
+        subprocess.run(command, shell=True)
+        
     def _get_rate_limiter(self) -> StatelessRateLimiter:
         """
         Get or create the rate limiter instance based on current configuration.
